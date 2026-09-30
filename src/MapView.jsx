@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { POLYGONS, POLYGON_IDS } from "./polygons.js";
 import { colourOf } from "./store.js";
 import { Icons } from "./icons.jsx";
+import { SvgMap, webglAvailable } from "./SvgMap.jsx";
 
 const GREY = { hex: "#5c5a7a", opacity: 0.42, line: "#6e5db0" };
 
@@ -44,16 +45,17 @@ export function MapView({ forecasts, selectedId, editingId, onTogglePolygon, onL
   latest.current = { forecasts, selectedId, editingId, onTogglePolygon, onLasso };
 
   const [mapError, setMapError] = useState("");
+  const [fallback, setFallback] = useState(() => !window.maplibregl || !webglAvailable());
+  const loaded = useRef(false);
   useEffect(() => {
-    if (!el.current) return;
-    if (!window.maplibregl) { setMapError("Map library failed to load."); return; }
+    if (!el.current || fallback) return;
     let m;
     try {
       m = new window.maplibregl.Map({ container: el.current, style: STYLE, center: [-116.05, 51.45], zoom: 7.4, attributionControl: false });
-    } catch (e) { setMapError("Map could not start: " + (e.message || e)); return; }
+    } catch (e) { setMapError("Map could not start: " + (e.message || e)); setFallback(true); return; }
     m.addControl(new window.maplibregl.AttributionControl({ compact: true }), "bottom-left");
     m.on("load", () => {
-      ready.current = true;
+      ready.current = true; loaded.current = true;
       for (const f of POLYGONS.features) {
         const el = document.createElement("div");
         el.className = "polylabel"; el.textContent = f.properties.name;
@@ -61,7 +63,13 @@ export function MapView({ forecasts, selectedId, editingId, onTogglePolygon, onL
       }
       paint();
     });
-    m.on("error", (e) => { if (e?.error?.message?.includes("tile")) tilesFailed(); });
+    m.on("error", (e) => {
+      const msg = e?.error?.message || String(e?.error || "");
+      if (/tile|fetch|network|load/i.test(msg) && loaded.current) { tilesFailed(); return; }
+      if (!loaded.current) { setMapError("Map engine error: " + msg); setFallback(true); }
+    });
+    // If the engine never reports its first load, switch to the fallback map.
+    const guard = setTimeout(() => { if (!loaded.current) { setMapError("Map engine did not start in time"); setFallback(true); } }, 5000);
     m.on("click", "poly-fill", (e) => {
       const { editingId, onTogglePolygon } = latest.current;
       if (editingId && onTogglePolygon && e.features[0]) onTogglePolygon(e.features[0].id);
@@ -69,8 +77,8 @@ export function MapView({ forecasts, selectedId, editingId, onTogglePolygon, onL
     m.on("mouseenter", "poly-fill", () => { if (latest.current.editingId) m.getCanvas().style.cursor = "pointer"; });
     m.on("mouseleave", "poly-fill", () => { m.getCanvas().style.cursor = ""; });
     map.current = m;
-    return () => { m.remove(); map.current = null; ready.current = false; };
-  }, []);
+    return () => { clearTimeout(guard); try { m.remove(); } catch {} map.current = null; ready.current = false; };
+  }, [fallback]);
 
   function paint() {
     const m = map.current;
@@ -113,8 +121,12 @@ export function MapView({ forecasts, selectedId, editingId, onTogglePolygon, onL
 
   return (
     <div className="mapwrap">
-      <div ref={el} className="map" />
-      {mapError && <div className="tilenote" style={{ top: 60, bottom: "auto", left: 10, right: "auto" }}>{mapError}</div>}
+      {fallback ? (
+        <SvgMap forecasts={forecasts} selectedId={selectedId} editingId={editingId} onTogglePolygon={onTogglePolygon} onLasso={onLasso} lasso={lasso} />
+      ) : (
+        <div ref={el} className="map" />
+      )}
+      {mapError && <div className="tilenote" style={{ top: 60, bottom: "auto", left: 10, right: "auto" }} title={mapError}>Basic map mode</div>}
       {banner && (
         <div className="mapbanner" style={{ background: banner.hex, color: banner.text }}>
           <b>{banner.name}</b>
@@ -122,7 +134,7 @@ export function MapView({ forecasts, selectedId, editingId, onTogglePolygon, onL
         </div>
       )}
       {editingId && <button className={"lassobtn" + (lasso ? " on" : "")} title={lasso ? "Lasso on — drag around polygons to add, hold Shift to remove. Click to turn off." : "Lasso select"} aria-pressed={lasso} onClick={() => setLasso(!lasso)}>{Icons.lasso}</button>}
-      {lasso && <div className="lassolayer" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+      {lasso && !fallback && <div className="lassolayer" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
         {path && <svg className="lassosvg"><polygon points={path.map((p) => p.join(",")).join(" ")} /></svg>}
         <div className="lassohint">Drag to select polygons · hold Shift to remove</div>
       </div>}

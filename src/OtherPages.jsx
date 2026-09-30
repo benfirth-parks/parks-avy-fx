@@ -4,6 +4,7 @@ import { syncInfo, useSyncStatus } from "./sync.js";
 import { ask } from "./dialog.jsx";
 import { go } from "./App.jsx";
 import { Icons } from "./icons.jsx";
+import { webglAvailable } from "./SvgMap.jsx";
 
 const STATUSES = ["active", "developing", "dormant"];
 const GRAINS = ["Surface Hoar", "Facets", "Depth Hoar", "Crust", "Crust/Facet", "Decomposing & Fragmented", "Rounded Grains", "Precipitation Particles", "Melt-Freeze Crust", "Mixed Forms"];
@@ -90,7 +91,7 @@ export function Documentation() {
       <p>Forecasts and weak layers are saved to a shared team document a moment after every change and picked up by everyone else within about fifteen seconds. If two people change the same forecast at once, the later edit wins for that forecast; other forecasts are unaffected. The dot beside the initials shows the state: green saved, amber saving, red offline (changes are kept in this browser and sent when the connection returns).</p>
       <p className="muted">Status now: {status}{info.version ? ` · shared document v${info.version}` : ""}{info.lastBy ? ` · last change by ${info.lastBy}` : ""}</p>
       {info.lastError && <p className="muted" style={{ fontFamily: "monospace", fontSize: 12 }}>Last sync error — {info.lastError}</p>}
-      <p className="muted" style={{ fontFamily: "monospace", fontSize: 12 }}>Map library: {typeof window.maplibregl === "object" ? "loaded" : "NOT loaded"} · WebGL: {(() => { try { const c = document.createElement("canvas"); return c.getContext("webgl2") || c.getContext("webgl") ? "yes" : "no"; } catch { return "no"; } })()}</p>
+      <p className="muted" style={{ fontFamily: "monospace", fontSize: 12 }}>Map library: {typeof window.maplibregl === "object" ? "loaded" : "NOT loaded"} · WebGL: {webglAvailable() ? "yes (MapLibre map)" : "no (basic tile map)"}</p>
       <h2>Known gaps</h2>
       <ul>
         <li>Map polygons are hand-drafted placeholders until the real BYK forecast polygons (GeoJSON) are loaded into <code>src/polygons.js</code>.</li>

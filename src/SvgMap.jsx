@@ -1,0 +1,136 @@
+import React, { useEffect, useRef, useState } from "react";
+import { POLYGONS } from "./polygons.js";
+import { colourOf } from "./store.js";
+
+// WebGL-free map: OpenTopoMap raster tiles in a slippy grid plus SVG polygons.
+// Same props and behaviour as the MapLibre view; used when WebGL is unavailable.
+const TILE = 256;
+const GREY = { hex: "#5c5a7a", opacity: 0.42, line: "#6e5db0" };
+
+const lon2x = (lon, z) => ((lon + 180) / 360) * Math.pow(2, z) * TILE;
+const lat2y = (lat, z) => { const r = (lat * Math.PI) / 180; return ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * Math.pow(2, z) * TILE; };
+
+function bbox() {
+  let w = 180, s = 90, e = -180, n = -90;
+  for (const f of POLYGONS.features) for (const [x, y] of f.geometry.coordinates[0]) { w = Math.min(w, x); e = Math.max(e, x); s = Math.min(s, y); n = Math.max(n, y); }
+  return { w, s, e, n };
+}
+function centroid(ring) {
+  let x = 0, y = 0, n = ring.length - 1;
+  for (let i = 0; i < n; i++) { x += ring[i][0]; y += ring[i][1]; }
+  return [x / n, y / n];
+}
+function shade(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.max(0, (n >> 16) - 60), g = Math.max(0, ((n >> 8) & 255) - 60), b = Math.max(0, (n & 255) - 60);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+function pointInPoly([x, y], poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+export function SvgMap({ forecasts, selectedId, editingId, onTogglePolygon, onLasso, lasso, onLassoPath }) {
+  const wrap = useRef(null);
+  const [size, setSize] = useState({ w: 800, h: 600 });
+  const [view, setView] = useState(null); // {z, cx, cy} in world px at zoom z
+  const drag = useRef(null);
+  const lassoRef = useRef(null);
+  const [path, setPath] = useState(null);
+
+  useEffect(() => {
+    const el = wrap.current; if (!el) return;
+    const ro = new ResizeObserver(() => { const r = el.getBoundingClientRect(); if (r.width && r.height) setSize({ w: r.width, h: r.height }); });
+    ro.observe(el);
+    const r = el.getBoundingClientRect(); if (r.width && r.height) setSize({ w: r.width, h: r.height });
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    if (view) return;
+    const b = bbox();
+    let z = 12;
+    while (z > 4 && (lon2x(b.e, z) - lon2x(b.w, z) > size.w * 0.9 || lat2y(b.s, z) - lat2y(b.n, z) > size.h * 0.9)) z--;
+    setView({ z, cx: (lon2x(b.w, z) + lon2x(b.e, z)) / 2, cy: (lat2y(b.n, z) + lat2y(b.s, z)) / 2 });
+  }, [size, view]);
+  if (!view) return <div ref={wrap} className="map svgmap" />;
+
+  const { z, cx, cy } = view;
+  const left = cx - size.w / 2, top = cy - size.h / 2;
+  const project = ([lon, lat]) => [lon2x(lon, z) - left, lat2y(lat, z) - top];
+  const tiles = [];
+  const n = Math.pow(2, z);
+  for (let tx = Math.floor(left / TILE); tx <= Math.floor((left + size.w) / TILE); tx++)
+    for (let ty = Math.floor(top / TILE); ty <= Math.floor((top + size.h) / TILE); ty++) {
+      if (ty < 0 || ty >= n) continue;
+      const wx = ((tx % n) + n) % n;
+      const sub = ["a", "b", "c"][(wx + ty) % 3];
+      tiles.push(<img key={`${tx}/${ty}`} src={`https://${sub}.tile.opentopomap.org/${z}/${wx}/${ty}.png`} alt="" draggable={false} style={{ position: "absolute", left: tx * TILE - left, top: ty * TILE - top, width: TILE, height: TILE, filter: "saturate(.85)", opacity: 0.9 }} />);
+    }
+
+  const byPoly = {};
+  for (const f of forecasts) for (const p of f.polygons) byPoly[p] = f;
+  const polys = POLYGONS.features.map((f) => {
+    const fc = byPoly[f.id];
+    let fill = GREY.hex, opacity = GREY.opacity, line = GREY.line;
+    if (fc) { const c = colourOf(fc); const focus = !selectedId && !editingId ? true : fc.id === selectedId || fc.id === editingId; fill = c.hex; opacity = focus ? 0.82 : 0.35; line = shade(c.hex); }
+    const pts = f.geometry.coordinates[0].map(project);
+    const [lx, ly] = project(centroid(f.geometry.coordinates[0]));
+    return (
+      <g key={f.id}>
+        <polygon points={pts.map((p) => p.join(",")).join(" ")} fill={fill} fillOpacity={opacity} stroke={line} strokeWidth="1.6" style={{ cursor: editingId ? "pointer" : "default" }} onClick={() => { if (editingId && !lasso) onTogglePolygon?.(f.id); }} />
+        <text x={lx} y={ly} fontSize="11" textAnchor="middle" fill="#1f1f1f" stroke="#fff" strokeWidth="3" paintOrder="stroke" style={{ pointerEvents: "none" }}>{f.properties.name}</text>
+      </g>
+    );
+  });
+
+  const pt = (e) => { const r = wrap.current.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const onDown = (e) => {
+    if (e.button !== 0) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    if (lasso) { lassoRef.current = { pts: [pt(e)], remove: e.shiftKey }; setPath([pt(e)]); return; }
+    drag.current = { x: e.clientX, y: e.clientY, cx, cy, moved: false };
+  };
+  const onMove = (e) => {
+    if (lassoRef.current) { lassoRef.current.pts.push(pt(e)); setPath([...lassoRef.current.pts]); return; }
+    const d = drag.current; if (!d) return;
+    const dx = e.clientX - d.x, dy = e.clientY - d.y;
+    if (Math.abs(dx) + Math.abs(dy) > 3) d.moved = true;
+    setView({ z, cx: d.cx - dx, cy: d.cy - dy });
+  };
+  const onUp = (e) => {
+    const l = lassoRef.current; lassoRef.current = null; setPath(null);
+    if (l && l.pts.length >= 3) {
+      const hit = POLYGONS.features.filter((f) => { const ring = f.geometry.coordinates[0]; return pointInPoly(project(centroid(ring)), l.pts) || ring.some((ll) => pointInPoly(project(ll), l.pts)); }).map((f) => f.id);
+      if (hit.length) onLasso?.(hit, l.remove || e.shiftKey);
+    }
+    drag.current = null;
+  };
+  const zoom = (dz, ax, ay) => {
+    const nz = Math.max(4, Math.min(15, z + dz)); if (nz === z) return;
+    const k = Math.pow(2, nz - z);
+    const px = ax ?? size.w / 2, py = ay ?? size.h / 2;
+    const wx = left + px, wy = top + py; // world point under cursor at z
+    setView({ z: nz, cx: wx * k - px + size.w / 2, cy: wy * k - py + size.h / 2 });
+  };
+  const onWheel = (e) => { e.preventDefault(); const [x, y] = pt(e); zoom(e.deltaY < 0 ? 1 : -1, x, y); };
+
+  return (
+    <div ref={wrap} className="map svgmap" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel} onDoubleClick={(e) => { const [x, y] = pt(e); zoom(1, x, y); }} style={{ cursor: lasso ? "crosshair" : drag.current ? "grabbing" : "grab", touchAction: "none", overflow: "hidden", background: "#dfe9b8", userSelect: "none" }}>
+      {tiles}
+      <svg width={size.w} height={size.h} style={{ position: "absolute", left: 0, top: 0 }}>
+        {polys}
+        {path && <polygon points={path.map((p) => p.join(",")).join(" ")} fill="rgba(91,100,242,.18)" stroke="#5b64f2" strokeWidth="1.5" strokeDasharray="5 4" />}
+      </svg>
+      <div className="zoomctl"><button type="button" aria-label="Zoom in" onClick={() => zoom(1)}>+</button><button type="button" aria-label="Zoom out" onClick={() => zoom(-1)}>−</button></div>
+      <div className="attrib">© OpenTopoMap (CC-BY-SA) © OpenStreetMap contributors</div>
+    </div>
+  );
+}
+
+export function webglAvailable() {
+  try { const c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl") || c.getContext("experimental-webgl")); } catch { return false; }
+}
