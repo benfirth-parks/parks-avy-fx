@@ -4,9 +4,9 @@ Avalanche forecast workbench for Parks Canada Visitor Safety (Banff / Yoho / Koo
 
 ## Stack
 - React 18 + esbuild, no framework. Plain CSS in `src/styles.css` styled to match AVID (Ant Design look). No UI libraries.
-- Map: MapLibre GL (`src/MapView.jsx`) with a WebGL-free fallback (`src/SvgMap.jsx`). Basemap OpenTopoMap (keyless).
+- Map: MapLibre GL (`src/MapView.jsx`) with a WebGL-free fallback (`src/SvgMap.jsx`). Basemap (keyless, styled like AVID's Mapbox Outdoors): AWS Terrain Tiles hillshade + OpenFreeMap vector tiles; polygons sit under the labels. Forecast markers (danger mountain) at each forecast's polygon centre. Fallback map uses OpenTopoMap rasters.
 - Accounts: `netlify/lib/auth.mjs` + `netlify/functions/auth.mjs` (Blobs `auth/users`, signed cookie). `state`, `translate` and `sms` require a session; `feed` is public. Client: `src/auth.js` gates the app and starts sync.
-- Polygons: placeholders in `src/polygons.js`; the real set is imported in-app and lives in the shared document as `geo` (newest import wins in `merge`).
+- Polygons: built-in set in `src/polygons.js` (traced from a georeferenced AVID screenshot, ~200 m); the real set is imported in-app and lives in the shared document as `geo` (newest import wins in `merge`).
 - Translation: `netlify/functions/translate.mjs` (MyMemory, keyless). SMS: `netlify/functions/sms.mjs` (Twilio, env vars only).
 - Public feed: `netlify/functions/feed.mjs` (JSON / RSS / SMS text of unexpired Live forecasts, EN/FR). Functions are called at their default `/.netlify/functions/<name>` path — a custom `config.path` returned 404 here.
 - Storage: Netlify Function `netlify/functions/state.mjs` + Netlify Blobs; client sync in `src/sync.js`; localStorage cache. Data model, mutations and merge rules in `src/store.js`.

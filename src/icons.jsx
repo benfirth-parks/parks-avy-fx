@@ -118,3 +118,19 @@ export const Icons = {
 };
 
 export const Hint = () => <span className="hint" title="Help">?</span>;
+
+// Map marker for a forecast (AVID style): white disc with a mountain whose three bands
+// show the day-one alpine / treeline / below-treeline ratings.
+export const DANGER_COLOUR = { Low: "#52b043", Moderate: "#fff200", Considerable: "#f79a1e", High: "#e5231b", Extreme: "#1f1f1f" };
+export function forecastMarkerSvg(danger = {}, size = 44) {
+  const c = (k) => DANGER_COLOUR[danger[k]] || "#fff";
+  const rated = ["alpine", "treeline", "btl"].some((k) => DANGER_COLOUR[danger[k]]);
+  const line = rated ? "#333" : "#9a9a9a";
+  return `<svg width="${size}" height="${size}" viewBox="0 0 44 44" aria-hidden="true">
+<circle cx="22" cy="22" r="20" fill="rgba(255,255,255,.92)" stroke="#8c8c8c" stroke-width="1.5"/>
+<path d="M22 9 L17.5 17 H26.5 Z" fill="${c("alpine")}"/>
+<path d="M17.5 17 L13.2 24.6 H30.8 L26.5 17 Z" fill="${c("treeline")}"/>
+<path d="M13.2 24.6 L9 32 H35 L30.8 24.6 Z" fill="${c("btl")}"/>
+<path d="M22 9 L9 32 H35 Z M17.5 17 H26.5 M13.2 24.6 H30.8" fill="none" stroke="${line}" stroke-width="1.1" stroke-linejoin="round"/>
+</svg>`;
+}

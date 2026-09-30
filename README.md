@@ -2,7 +2,7 @@
 
 Avalanche forecast workbench for Banff / Yoho / Kootenay Visitor Safety — a like-for-like replacement for AVID.
 
-**Stack:** React 18, esbuild, MapLibre GL (OpenTopoMap raster tiles, no API key), plain CSS styled to match AVID's Ant Design look. Shared team storage is a Netlify Function (`netlify/functions/state.mjs`) backed by Netlify Blobs — no external account or keys. Everyone signs in with their own account (also in Blobs). The client (`src/sync.js`) saves a moment after each change, polls every 15 s, merges newest-edit-wins per forecast, and keeps a `localStorage` copy for offline use.
+**Stack:** React 18, esbuild, MapLibre GL with a keyless outdoors-style basemap (AWS Terrain Tiles hillshade + OpenFreeMap vector roads/water/labels; OpenTopoMap in the no-WebGL fallback), plain CSS styled to match AVID's Ant Design look. Shared team storage is a Netlify Function (`netlify/functions/state.mjs`) backed by Netlify Blobs — no external account or keys. Everyone signs in with their own account (also in Blobs). The client (`src/sync.js`) saves a moment after each change, polls every 15 s, merges newest-edit-wins per forecast, and keeps a `localStorage` copy for offline use.
 
 ## Run locally
 ```
@@ -40,7 +40,7 @@ npm run build      # writes dist/
 ## First run after deploying
 1. Open the site: with no accounts yet it asks for the **first admin account**. Create it straight away (until then anyone who opens the site could claim it).
 2. Initials menu → **Users**: add the team with temporary passwords; they change them under **Account**.
-3. Initials menu → **Forecast polygons**: import the real BYK polygons (GeoJSON, WGS84, a name per polygon). Names matching the placeholders keep their ids.
+3. Initials menu → **Forecast polygons**: import the real BYK polygons (GeoJSON, WGS84, a name per polygon). Names matching the built-in polygons keep their ids.
 
 ## Optional Netlify environment variables
 | Variable | Effect |
@@ -51,5 +51,5 @@ npm run build      # writes dist/
 | `AUTH_SECRET` | Session signing secret (otherwise generated and stored in Blobs). Changing it signs everyone out |
 
 ## Still manual
-- The real BYK polygon file has to be imported once (see above); the repo only ships placeholders.
+- The built-in polygons were traced from a georeferenced AVID screenshot (~200 m). Import the official BYK file (see above) for exact boundaries.
 - Machine translation is a first draft: French stays tagged "Machine translated — review" until edited.

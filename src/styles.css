@@ -174,7 +174,8 @@ button{font-family:inherit}
 .dlg{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);width:440px;max-width:calc(100% - 32px);background:#fff;border-radius:6px;box-shadow:0 12px 40px rgba(0,0,0,.3);padding:22px 24px;z-index:101}
 .dlgtitle{font-size:16px;font-weight:600;margin-bottom:8px}.dlgmsg{font-size:14px;line-height:22px;white-space:pre-line}
 
-.polylabel{font-size:11px;color:#1f1f1f;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;pointer-events:none;white-space:nowrap}
+.polylabel{font-size:11px;color:#3a3a3a;text-shadow:0 0 2px rgba(255,255,255,.9),0 0 2px rgba(255,255,255,.9);pointer-events:none;white-space:nowrap}
+.fcmarker{pointer-events:none;line-height:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,.15))}
 .tilenote{position:absolute;right:10px;bottom:24px;background:rgba(255,255,255,.9);border:1px solid #ddd;border-radius:4px;padding:6px 10px;font-size:12px;color:#555;z-index:2;max-width:320px}
 /* minimal maplibre-gl base styles (the full stylesheet is loaded from unpkg where allowed) */
 .maplibregl-map{position:relative;overflow:hidden;font:12px/20px var(--font);-webkit-tap-highlight-color:rgba(0,0,0,0)}

@@ -100,7 +100,7 @@ export function PolygonsAdmin() {
   return (
     <div className="page doc">
       <h1>Forecast polygons</h1>
-      <p>{imported ? <>Using <b>{POLYGONS.features.length}</b> imported polygons{state.geo?.by ? <> (imported by {state.geo.by}, {fmtStamp(state.geo.modified)})</> : null}.</> : <>Using the <b>hand-drafted placeholder</b> polygons. Import the real BYK forecast polygons below.</>}</p>
+      <p>{imported ? <>Using <b>{POLYGONS.features.length}</b> imported polygons{state.geo?.by ? <> (imported by {state.geo.by}, {fmtStamp(state.geo.modified)})</> : null}.</> : <>Using the <b>built-in polygons</b>, traced from the AVID map (about 200 m accuracy). Import the official BYK polygon file below for exact boundaries.</>}</p>
       <ul>{POLYGONS.features.map((f) => <li key={f.id}>{f.properties.name} <span className="muted">· {f.id}</span></li>)}</ul>
       {!canEdit ? <p className="muted">Only an admin can change the polygons.</p> : (
         <>
@@ -121,7 +121,7 @@ export function PolygonsAdmin() {
               </div>
             </div>
           )}
-          {imported && <p style={{ marginTop: 24 }}><button className="btn danger" onClick={async () => { if (await ask({ title: "Use placeholder polygons", message: "Go back to the hand-drafted placeholder polygons for everyone?", okLabel: "Revert", danger: true })) setGeo(null); }}>Revert to placeholders</button></p>}
+          {imported && <p style={{ marginTop: 24 }}><button className="btn danger" onClick={async () => { if (await ask({ title: "Use placeholder polygons", message: "Go back to the built-in polygons (traced from the AVID map) for everyone?", okLabel: "Revert", danger: true })) setGeo(null); }}>Revert to placeholders</button></p>}
         </>
       )}
     </div>
