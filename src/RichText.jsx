@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Icons } from "./icons.jsx";
 import { ask, notify } from "./dialog.jsx";
+import { translateOne } from "./translate.js";
 
 // Bilingual rich-text field with the AVID toolbar. contentEditable + execCommand
 // keeps the demo dependency-free; swap for Tiptap when the package registry is reachable.
-export function RichText({ label, value, onChange, maxLen = 400, translationRequired, minHeight = 120, plain = false }) {
+export function RichText({ label, value, onChange, maxLen = 400, translationRequired, minHeight = 120, plain = false, translateFrom, onTranslated }) {
   const ref = useRef(null);
   const [len, setLen] = useState(0);
   const [big, setBig] = useState(false);
@@ -32,7 +33,7 @@ export function RichText({ label, value, onChange, maxLen = 400, translationRequ
 
   return (
     <div className="rtefield">
-      <div className="rtelbl">{label}{translationRequired === "machine" ? <span className="tag amber" title="Filled in by machine translation. Edit or re-save the French to confirm it.">Machine translated — review</span> : translationRequired && <span className="tag red">Translation Required</span>}</div>
+      <div className="rtelbl">{label}{onTranslated && <TranslateFromEnglish en={translateFrom} fr={value} plain={plain} onDone={onTranslated} />}{translationRequired === "machine" ? <span className="tag amber" title="Filled in by machine translation. Edit or re-save the French to confirm it.">Machine translated — review</span> : translationRequired && <span className="tag red">Translation Required</span>}</div>
       <div className={"rte" + (big ? " big" : "")} style={{ minHeight }}>
         <div className="rtebar">
           <Btn title="Clear" on={clear}>{Icons.trash}</Btn>
@@ -60,17 +61,39 @@ export function RichText({ label, value, onChange, maxLen = 400, translationRequ
   );
 }
 
+// "Translate from English" for a French field: machine-translates the English
+// field next to it (keeps formatting and links) and fills in the French.
+function TranslateFromEnglish({ en, fr, plain, onDone }) {
+  const [busy, setBusy] = useState(false);
+  const empty = !String(en || "").replace(/<[^>]*>/g, "").trim();
+  const run = async () => {
+    if (empty) return;
+    const hasFr = String(fr || "").replace(/<[^>]*>/g, "").trim();
+    if (hasFr && !(await ask({ title: "Translate from English", message: "Replace the French text with a machine translation of the English?", okLabel: "Replace" }))) return;
+    setBusy(true);
+    try { onDone(await translateOne(en, !plain)); }
+    catch (e) { notify(e.message || String(e), "Translation failed"); }
+    setBusy(false);
+  };
+  return (
+    <button type="button" className="btn small translatebtn" disabled={busy || empty} title={empty ? "Write the English first" : "Translate from English: machine-translates the English into this field"} onClick={run}>
+      {busy ? "Translating…" : "Translate"}
+    </button>
+  );
+}
+
 export function AddLanguage() {
   return <button className="btn addlang" onClick={() => notify("Additional languages are configured per organization. English and French are enabled.", "Add Language")}>Add Language <span className="caret">{Icons.chevronDown}</span></button>;
 }
 
 // English + French pair bound to a {en, fr, tr} object.
 export function Bilingual({ field, onChange, maxLen = 400, minHeight, plain }) {
+  const latest = useRef(field); latest.current = field; // English may change while a translation is in flight
   return (
     <>
       <RichText label="English" value={field.en} maxLen={maxLen} minHeight={minHeight} plain={plain} translationRequired={field.tr} onChange={(en) => onChange({ ...field, en, tr: true })} />
       <div style={{ height: 16 }} />
-      <RichText label="French" value={field.fr} maxLen={maxLen} minHeight={minHeight} plain={plain} translationRequired={field.tr} onChange={(fr) => onChange({ ...field, fr, tr: false })} />
+      <RichText label="French" value={field.fr} maxLen={maxLen} minHeight={minHeight} plain={plain} translationRequired={field.tr} onChange={(fr) => onChange({ ...field, fr, tr: false })} translateFrom={field.en} onTranslated={(fr) => onChange({ ...latest.current, fr, tr: "machine" })} />
       <AddLanguage />
     </>
   );

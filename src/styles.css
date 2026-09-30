@@ -104,7 +104,7 @@ button{font-family:inherit}
 .wide{padding:24px 20px;position:relative}
 
 /* rich text */
-.rtelbl{font-size:14px;display:flex;align-items:center;gap:12px;margin:0 0 8px}
+.rtelbl{font-size:14px;display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin:0 0 8px}
 .rte{border:1px solid #d9d9d9;border-radius:3px;background:#fff;position:relative;display:flex;flex-direction:column}
 .rte.big{min-height:420px!important}
 .rtebar{min-height:34px;flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;padding:4px 6px;border-bottom:1px solid #eee;color:#9a9a9a;font-size:12px}
@@ -208,3 +208,6 @@ kbd{background:#f2f2f2;border:1px solid #ddd;border-radius:3px;padding:0 5px;fon
 .logintitle{font-size:26px;margin-bottom:6px}
 .loginerr{color:#c0392b;margin-top:12px;font-size:14px}
 .tag.amber{background:#fff7e6;color:#ad6800;border-color:#ffd591}
+.btn.small{height:26px;padding:0 10px;font-size:12.5px}
+.translatebtn{margin-left:auto;order:2}
+.btn:disabled{cursor:not-allowed;opacity:.55}

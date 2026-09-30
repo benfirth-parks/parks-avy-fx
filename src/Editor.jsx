@@ -192,14 +192,14 @@ function Communications({ f, set }) {
       <div className="accbody pad">
         <RichText label="English" value={comms.headline.en} maxLen={280} minHeight={150} translationRequired={comms.headline.tr} onChange={(en) => setC("headline", { ...comms.headline, en, tr: true })} />
         <div style={{ height: 16 }} />
-        <RichText label="French" value={comms.headline.fr} maxLen={280} minHeight={150} translationRequired={comms.headline.tr} onChange={(fr) => setC("headline", { ...comms.headline, fr, tr: false })} />
+        <RichText label="French" value={comms.headline.fr} maxLen={280} minHeight={150} translationRequired={comms.headline.tr} onChange={(fr) => setC("headline", { ...comms.headline, fr, tr: false })} translateFrom={comms.headline.en} onTranslated={(fr) => set((x) => { x.comms.headline = { ...x.comms.headline, fr, tr: "machine" }; return x; })} />
         <AddLanguage />
       </div>
       <div className="acc open static row between" style={{ paddingRight: 0 }}>SMS Message<button className="btn flat" onClick={() => setC("sms", { en: strip(comms.headline.en), fr: strip(comms.headline.fr), tr: comms.headline.tr })}>Copy from headline</button></div>
       <div className="accbody pad">
         <RichText label="English" plain value={comms.sms.en} maxLen={140} minHeight={130} translationRequired={comms.sms.tr} onChange={(en) => setC("sms", { ...comms.sms, en, tr: true })} />
         <div style={{ height: 16 }} />
-        <RichText label="French" plain value={comms.sms.fr} maxLen={140} minHeight={130} translationRequired={comms.sms.tr} onChange={(fr) => setC("sms", { ...comms.sms, fr, tr: false })} />
+        <RichText label="French" plain value={comms.sms.fr} maxLen={140} minHeight={130} translationRequired={comms.sms.tr} onChange={(fr) => setC("sms", { ...comms.sms, fr, tr: false })} translateFrom={comms.sms.en} onTranslated={(fr) => set((x) => { x.comms.sms = { ...x.comms.sms, fr: fr.slice(0, 140), tr: "machine" }; return x; })} />
         <AddLanguage />
       </div>
     </div>

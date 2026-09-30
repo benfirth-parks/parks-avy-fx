@@ -57,6 +57,18 @@ export async function translateForecast(id) {
   return n;
 }
 
+// Translate one field's English (HTML or plain text) to French for the per-field
+// "Translate from English" button. Returns the French string.
+export async function translateOne(en, html = true) {
+  if (!html) return (await translateTexts([en]))[0];
+  const doc = new DOMParser().parseFromString(`<body>${en}</body>`, "text/html");
+  const nodes = textNodes(doc.body);
+  if (!nodes.length) return en;
+  const out = await translateTexts(nodes.map((n) => n.nodeValue));
+  nodes.forEach((n, i) => { n.nodeValue = out[i]; });
+  return doc.body.innerHTML;
+}
+
 function textNodes(root) {
   const out = [];
   const w = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
