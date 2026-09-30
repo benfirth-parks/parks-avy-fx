@@ -5,6 +5,7 @@ Avalanche forecast workbench for Parks Canada Visitor Safety (Banff / Yoho / Koo
 ## Stack
 - React 18 + esbuild, no framework. Plain CSS in `src/styles.css` styled to match AVID (Ant Design look). No UI libraries.
 - Map: MapLibre GL (`src/MapView.jsx`) with a WebGL-free fallback (`src/SvgMap.jsx`). Basemap OpenTopoMap (keyless).
+- Public feed: `netlify/functions/feed.mjs` (JSON / RSS / SMS text of unexpired Live forecasts, EN/FR). Functions are called at their default `/.netlify/functions/<name>` path — a custom `config.path` returned 404 here.
 - Storage: Netlify Function `netlify/functions/state.mjs` + Netlify Blobs; client sync in `src/sync.js`; localStorage cache. Data model, mutations and merge rules in `src/store.js`.
 - Deploy: Netlify site `parks-avy-fx` (PCVS team) builds from `main` via `netlify.toml`. Every push to main deploys.
 

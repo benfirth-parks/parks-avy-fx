@@ -92,11 +92,20 @@ export function Documentation() {
       <p className="muted">Status now: {status}{info.version ? ` · shared document v${info.version}` : ""}{info.lastBy ? ` · last change by ${info.lastBy}` : ""}</p>
       {info.lastError && <p className="muted" style={{ fontFamily: "monospace", fontSize: 12 }}>Last sync error — {info.lastError}</p>}
       <p className="muted" style={{ fontFamily: "monospace", fontSize: 12 }}>Map library: {typeof window.maplibregl === "object" ? "loaded" : "NOT loaded"} · WebGL: {webglAvailable() ? "yes (MapLibre map)" : "no (basic tile map)"}</p>
+      <h2>Public feeds</h2>
+      <p>Every Live forecast that has not expired is published automatically, a minute or so after Publish. Add <code>&amp;lang=fr</code> for French.</p>
+      <ul>
+        {[["JSON", "json", "for websites and apps"], ["RSS", "rss", "for feed readers and newsletters"], ["SMS text", "sms", "the SMS message, ready for a texting service"]].map(([t, k, d]) => {
+          const href = `/.netlify/functions/feed?format=${k}`;
+          return <li key={k}><a href={href} target="_blank" rel="noreferrer">{t}</a> — {d} · <code>{location.origin}{href}</code></li>;
+        })}
+      </ul>
       <h2>Known gaps</h2>
       <ul>
         <li>Map polygons are hand-drafted placeholders until the real BYK forecast polygons (GeoJSON) are loaded into <code>src/polygons.js</code>.</li>
         <li>Translate is a stub; a translation service still needs to be chosen.</li>
         <li>No per-person login yet; the site relies on Netlify team access.</li>
+        <li>SMS text is published as a feed; nothing sends texts yet (needs a texting service to poll it).</li>
       </ul>
       <h2>Demo data</h2>
       <button className="btn danger" onClick={async () => { if (await ask({ title: "Reset demo data", message: "Replace everything with the seed forecast? This also overwrites the shared document for the whole team.", okLabel: "Reset", danger: true })) resetDemo(); }}>Reset demo data</button>

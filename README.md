@@ -20,6 +20,7 @@ npm run build      # writes dist/
 | `src/store.js` | Data model, seed forecast, mutations, merge rules, publish / clone / expiry / progress logic |
 | `src/sync.js` | Shared-document sync with the Netlify function (versioned PUT, conflict merge, polling) |
 | `netlify/functions/state.mjs` | GET/PUT of the shared document in Netlify Blobs, with version history |
+| `netlify/functions/feed.mjs` | Public read-only feed of unexpired Live forecasts: `/.netlify/functions/feed?format=json\|rss\|sms&lang=en\|fr` |
 | `src/content.js` | Standard statement libraries (confidence, danger scale) and French UI strings |
 | `src/polygons.js` | **Placeholder** forecast polygons (hand-drafted). Replace with the real BYK GeoJSON |
 | `src/MapView.jsx` | MapLibre map: polygon fills by forecast colour, click-to-toggle and lasso select in setup mode |
@@ -33,5 +34,5 @@ npm run build      # writes dist/
 ## Not yet wired
 - Per-person login (site relies on Netlify team access; the avatar menu records who is editing)
 - Machine translation (the Translate button is a stub)
-- SMS / feed publishing endpoints
+- Sending SMS (the text is published by the feed function; a texting service still needs to poll it)
 - Real BYK forecast polygons (see `src/polygons.js`)
