@@ -5,14 +5,15 @@
   "type": "module",
   "description": "Parks Canada Visitor Safety avalanche forecast workbench (AVID replacement)",
   "scripts": {
-    "build": "esbuild src/main.jsx --bundle --minify --jsx=automatic --format=iife --target=es2020 --outfile=dist/app.js --define:process.env.NODE_ENV=\\\"production\\\" && cp src/styles.css dist/styles.css && cp index.html dist/index.html",
+    "build": "esbuild src/main.jsx --bundle --minify --jsx=automatic --format=iife --target=es2020 --outfile=dist/app.js --define:process.env.NODE_ENV=\\\"production\\\" && cp src/styles.css dist/styles.css && cp index.html dist/index.html && cp node_modules/maplibre-gl/dist/maplibre-gl.js node_modules/maplibre-gl/dist/maplibre-gl.css dist/",
     "dev": "esbuild src/main.jsx --bundle --jsx=automatic --format=iife --outfile=dist/app.js --define:process.env.NODE_ENV=\\\"development\\\" --servedir=dist --watch",
     "predev": "mkdir -p dist && cp src/styles.css dist/styles.css && cp index.html dist/index.html"
   },
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "@netlify/blobs": "^8.1.0"
+    "@netlify/blobs": "^8.1.0",
+    "maplibre-gl": "^4.7.1"
   },
   "devDependencies": {
     "esbuild": "^0.24.0"

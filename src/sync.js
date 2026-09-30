@@ -11,38 +11,40 @@ let lastBy = "";
 let timer = null;
 let inflight = null;
 let dirty = false;
-let server = null; // null = unknown, true = reachable, false = no API here (local file, preview host)
+let server = null;
+let lastError = "";
+const fail = (where, e) => { lastError = `${where}: ${e && e.message ? e.message : e} (${new Date().toLocaleTimeString()})`; }; // null = unknown, true = reachable, false = no API here (local file, preview host)
 const listeners = new Set();
 const setStatus = (s) => { status = s; listeners.forEach((l) => l()); };
 
 export function useSyncStatus() {
   return useSyncExternalStore((cb) => { listeners.add(cb); return () => listeners.delete(cb); }, () => status);
 }
-export const syncInfo = () => ({ status, version, lastSyncedAt, lastBy });
+export const syncInfo = () => ({ status, version, lastSyncedAt, lastBy, lastError, server });
 
 const canSync = () => typeof fetch === "function" && /^https?:/.test(location.protocol);
 
 async function get() {
   const r = await fetch(API, { cache: "no-store" });
-  if (!r.ok) throw new Error("GET " + r.status);
+  if (!r.ok) throw new Error("GET " + r.status + " " + (await r.text()).slice(0, 200));
   return r.json();
 }
 async function put(state) {
   const r = await fetch(API, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ version, state, by: deps.getUser() }) });
   if (r.status === 409) return { conflict: await r.json() };
-  if (!r.ok) throw new Error("PUT " + r.status);
+  if (!r.ok) throw new Error("PUT " + r.status + " " + (await r.text()).slice(0, 300));
   return r.json();
 }
 
 export function start(d) {
   deps = d;
   if (!canSync()) return;
-  const tryBoot = () => boot().catch(() => { if (server === null) { server = false; setStatus("local"); } else setStatus("offline"); });
+  const tryBoot = () => boot().catch((e) => { fail("boot", e); if (server === null) { server = false; setStatus("local"); } else setStatus("offline"); });
   tryBoot();
   setInterval(() => {
     if (document.visibilityState !== "visible") return;
     if (server === false) return tryBoot();
-    if (server && !inflight && !dirty) poll().catch(() => setStatus("offline"));
+    if (server && !inflight && !dirty) poll().catch((e) => { fail("poll", e); setStatus("offline"); });
   }, 15_000);
   addEventListener("online", tryBoot);
 }
@@ -56,7 +58,7 @@ async function boot() {
   const local = deps.getState();
   if (!doc.state) {
     // First run for this site: publish the local (seed) document.
-    await save();
+    await save().catch((e) => { fail("first save", e); setStatus("offline"); });
     return;
   }
   const merged = deps.merge(local, doc.state);
@@ -78,7 +80,7 @@ export function scheduleSave() {
   dirty = true;
   setStatus("saving");
   clearTimeout(timer);
-  timer = setTimeout(() => save().catch(() => setStatus("offline")), 700);
+  timer = setTimeout(() => save().catch((e) => { fail("save", e); setStatus("offline"); }), 700);
 }
 
 async function save() {

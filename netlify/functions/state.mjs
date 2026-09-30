@@ -9,6 +9,14 @@ const KEY = "state";
 const MAX_BYTES = 5 * 1024 * 1024;
 
 export default async (req) => {
+  try {
+    return await handle(req);
+  } catch (e) {
+    return json({ error: String(e && e.message ? e.message : e) }, 500);
+  }
+};
+
+async function handle(req) {
   const store = getStore({ name: "parks-avy-fx", consistency: "strong" });
   if (req.method === "GET") {
     const doc = await store.get(KEY, { type: "json" });
@@ -24,10 +32,10 @@ export default async (req) => {
     const doc = { version: (cur.version ?? 0) + 1, state: body.state, updatedAt: new Date().toISOString(), updatedBy: String(body.by || "").slice(0, 80) };
     await store.setJSON(KEY, doc);
     // Keep a short history for recovery.
-    await store.setJSON(`history/${doc.version}`, doc).catch(() => {});
+    try { await store.setJSON(`history/${doc.version}`, doc); } catch {}
     return json({ version: doc.version, updatedAt: doc.updatedAt });
   }
   return new Response("Method not allowed", { status: 405 });
-};
+}
 
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });

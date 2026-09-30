@@ -89,6 +89,8 @@ export function Documentation() {
       <h2>Shared storage</h2>
       <p>Forecasts and weak layers are saved to a shared team document a moment after every change and picked up by everyone else within about fifteen seconds. If two people change the same forecast at once, the later edit wins for that forecast; other forecasts are unaffected. The dot beside the initials shows the state: green saved, amber saving, red offline (changes are kept in this browser and sent when the connection returns).</p>
       <p className="muted">Status now: {status}{info.version ? ` · shared document v${info.version}` : ""}{info.lastBy ? ` · last change by ${info.lastBy}` : ""}</p>
+      {info.lastError && <p className="muted" style={{ fontFamily: "monospace", fontSize: 12 }}>Last sync error — {info.lastError}</p>}
+      <p className="muted" style={{ fontFamily: "monospace", fontSize: 12 }}>Map library: {typeof window.maplibregl === "object" ? "loaded" : "NOT loaded"} · WebGL: {(() => { try { const c = document.createElement("canvas"); return c.getContext("webgl2") || c.getContext("webgl") ? "yes" : "no"; } catch { return "no"; } })()}</p>
       <h2>Known gaps</h2>
       <ul>
         <li>Map polygons are hand-drafted placeholders until the real BYK forecast polygons (GeoJSON) are loaded into <code>src/polygons.js</code>.</li>

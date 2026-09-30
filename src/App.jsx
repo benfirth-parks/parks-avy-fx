@@ -35,7 +35,7 @@ export function Nav({ active, hideAvatar }) {
   const user = getUser();
   const info = syncInfo();
   const label = { local: "Local only", saving: "Saving…", saved: "Saved", offline: "Offline · saved locally", conflict: "Sync conflict" }[status];
-  const title = status === "saved" && info.lastSyncedAt ? `Shared document v${info.version} · last change ${relTime(info.lastSyncedAt)}${info.lastBy ? " by " + info.lastBy : ""}` : label;
+  const title = status === "saved" && info.lastSyncedAt ? `Shared document v${info.version} · last change ${relTime(info.lastSyncedAt)}${info.lastBy ? " by " + info.lastBy : ""}` : info.lastError ? `${label} — ${info.lastError}` : label;
   const pick = async (name) => {
     if (name === "__other") {
       const n = await ask({ title: "Sign in as", message: "Your name as it should appear on forecasts", input: "", okLabel: "Continue" });

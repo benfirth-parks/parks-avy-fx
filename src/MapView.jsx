@@ -43,9 +43,14 @@ export function MapView({ forecasts, selectedId, editingId, onTogglePolygon, onL
   const tilesFailed = () => setNoTiles(true);
   latest.current = { forecasts, selectedId, editingId, onTogglePolygon, onLasso };
 
+  const [mapError, setMapError] = useState("");
   useEffect(() => {
-    if (!window.maplibregl || !el.current) return;
-    const m = new window.maplibregl.Map({ container: el.current, style: STYLE, center: [-116.05, 51.45], zoom: 7.4, attributionControl: false });
+    if (!el.current) return;
+    if (!window.maplibregl) { setMapError("Map library failed to load."); return; }
+    let m;
+    try {
+      m = new window.maplibregl.Map({ container: el.current, style: STYLE, center: [-116.05, 51.45], zoom: 7.4, attributionControl: false });
+    } catch (e) { setMapError("Map could not start: " + (e.message || e)); return; }
     m.addControl(new window.maplibregl.AttributionControl({ compact: true }), "bottom-left");
     m.on("load", () => {
       ready.current = true;
@@ -109,6 +114,7 @@ export function MapView({ forecasts, selectedId, editingId, onTogglePolygon, onL
   return (
     <div className="mapwrap">
       <div ref={el} className="map" />
+      {mapError && <div className="tilenote" style={{ top: 60, bottom: "auto", left: 10, right: "auto" }}>{mapError}</div>}
       {banner && (
         <div className="mapbanner" style={{ background: banner.hex, color: banner.text }}>
           <b>{banner.name}</b>
