@@ -1,7 +1,7 @@
 // Store: in-memory state, mirrored to localStorage (cache / offline) and to the
 // shared team document served by netlify/functions/state.mjs (Netlify Blobs).
 import { useSyncExternalStore } from "react";
-import { POLYGON_IDS } from "./polygons.js";
+import { POLYGON_IDS, setPolygons } from "./polygons.js";
 import * as sync from "./sync.js";
 
 const KEY = "parks-avy-fx:v2";
@@ -19,6 +19,10 @@ export const COLOURS = [
   { name: "Teal", hex: "#008080", text: "#fff" },
 ];
 export const FORECASTERS = ["Ben Firth", "Lisa Paulson"];
+// Names of everyone with an account (set after sign-in); falls back to FORECASTERS.
+let team = [];
+export const setTeam = (names) => { team = names || []; };
+export const forecasterNames = () => (team.length ? team : FORECASTERS);
 export const TIMEZONES = ["Mountain Time (Canada)", "Pacific Time (Canada)"];
 export const SECTIONS = [
   ["weather", "Weather Summary"],
@@ -154,6 +158,7 @@ export function seed() {
       { id: "wl1", name: "Generic non-persistent", grain: "Decomposing & Fragmented", status: "active", buried: "", notes: "", created: "2026-04-01", modified: "2026-04-01T18:00:00.000Z" },
     ],
     tombstones: {},
+    geo: null,
   };
 }
 
@@ -167,7 +172,12 @@ function load() {
   return seed();
 }
 function normalize(s) {
-  return { forecasts: s.forecasts || [], weakLayers: s.weakLayers || [], tombstones: s.tombstones || {} };
+  const next = { forecasts: s.forecasts || [], weakLayers: s.weakLayers || [], tombstones: s.tombstones || {}, geo: s.geo || null };
+  setPolygons(next.geo?.fc);
+  return next;
+}
+export function clearLocalData() {
+  try { localStorage.removeItem(KEY); localStorage.removeItem(USER_KEY); } catch {}
 }
 function saveLocal() {
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
@@ -206,7 +216,9 @@ export function merge(a, b) {
   }
   const weakLayers = [...wl.values()].filter((w) => !(tomb[w.id] && tomb[w.id] >= (w.modified || "")));
   forecasts.sort((x, y) => (y.modified || "").localeCompare(x.modified || ""));
-  return { forecasts, weakLayers, tombstones: tomb };
+  // Imported polygons: newest import wins (null = placeholders, but only if nothing newer).
+  const geo = [a.geo, b.geo].filter(Boolean).sort((x, y) => (y.modified || "").localeCompare(x.modified || ""))[0] || null;
+  return { forecasts, weakLayers, tombstones: tomb, geo };
 }
 
 // ---------- mutations ----------
@@ -270,7 +282,13 @@ export function expireForecasts() {
   if (changed) { state = { ...state, forecasts }; emit(); }
 }
 export function resetDemo() {
-  state = seed();
+  state = { ...seed(), geo: state.geo }; // keep imported polygons
+  emit();
+}
+// Replace the forecast polygons for everyone (fc = null → back to placeholders).
+export function setGeo(fc) {
+  state = { ...state, geo: fc ? { fc, modified: nowIso(), by: user } : { fc: null, modified: nowIso(), by: user } };
+  setPolygons(state.geo.fc);
   emit();
 }
 export function addWeakLayer(w) {
@@ -297,7 +315,13 @@ export function unassignedCount(forecasts, status) {
   return POLYGON_IDS.filter((p) => !used.has(p)).length;
 }
 
-// Boot the shared-document sync once the module is loaded.
-sync.start({ getState, replaceState, merge, getUser });
+// Shared-document sync starts once sign-in is resolved (src/auth.js); a second
+// call after a 401 + fresh sign-in resumes it.
+let syncStarted = false;
+export function startSync(extra = {}) {
+  if (syncStarted) return sync.resume();
+  syncStarted = true;
+  sync.start({ getState, replaceState, merge, getUser, ...extra });
+}
 expireForecasts();
 setInterval(expireForecasts, 60_000);

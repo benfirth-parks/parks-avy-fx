@@ -1,14 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
-import { POLYGONS, POLYGON_IDS } from "./polygons.js";
+import { POLYGONS, POLYGON_IDS, outerRings, labelPoint } from "./polygons.js";
 import { colourOf } from "./store.js";
 import { Icons } from "./icons.jsx";
-import { SvgMap, webglAvailable } from "./SvgMap.jsx";
+import { SvgMap, webglAvailable, polygonBounds } from "./SvgMap.jsx";
 
 const GREY = { hex: "#5c5a7a", opacity: 0.42, line: "#6e5db0" };
 
 // Keyless raster basemap. OpenTopoMap is the closest free match to the terrain
 // look of the current tool; swap `tiles` for Mapbox/MapTiler outdoors if a key is available.
-const STYLE = {
+const style = () => ({
   version: 8,
   sources: {
     topo: {
@@ -17,7 +17,7 @@ const STYLE = {
       tileSize: 256,
       attribution: "© OpenTopoMap (CC-BY-SA) © OpenStreetMap contributors",
     },
-    polys: { type: "geojson", data: POLYGONS, promoteId: "id" },
+    polys: { type: "geojson", data: { type: "FeatureCollection", features: POLYGONS.features }, promoteId: "id" },
   },
   layers: [
     { id: "ground", type: "background", paint: { "background-color": "#dfe9b8" } },
@@ -25,14 +25,8 @@ const STYLE = {
     { id: "poly-fill", type: "fill", source: "polys", paint: { "fill-color": ["coalesce", ["feature-state", "color"], GREY.hex], "fill-opacity": ["coalesce", ["feature-state", "opacity"], GREY.opacity] } },
     { id: "poly-line", type: "line", source: "polys", paint: { "line-color": ["coalesce", ["feature-state", "line"], GREY.line], "line-width": 1.6 } },
   ],
-};
-
-// Polygon labels as HTML markers (no glyph fetch needed, so they work offline too).
-function centroid(ring) {
-  let x = 0, y = 0, n = ring.length - 1;
-  for (let i = 0; i < n; i++) { x += ring[i][0]; y += ring[i][1]; }
-  return [x / n, y / n];
-}
+});
+// Polygon labels are HTML markers (no glyph fetch needed, so they work offline too).
 
 export function MapView({ forecasts, selectedId, editingId, onTogglePolygon, onLasso, banner, unassigned }) {
   const el = useRef(null), map = useRef(null), ready = useRef(false);
@@ -51,7 +45,8 @@ export function MapView({ forecasts, selectedId, editingId, onTogglePolygon, onL
     if (!el.current || fallback) return;
     let m;
     try {
-      m = new window.maplibregl.Map({ container: el.current, style: STYLE, center: [-116.05, 51.45], zoom: 7.4, attributionControl: false });
+      const b = polygonBounds();
+      m = new window.maplibregl.Map({ container: el.current, style: style(), bounds: [[b.w, b.s], [b.e, b.n]], fitBoundsOptions: { padding: 40 }, attributionControl: false });
     } catch (e) { setMapError("Map could not start: " + (e.message || e)); setFallback(true); return; }
     m.addControl(new window.maplibregl.AttributionControl({ compact: true }), "bottom-left");
     m.on("load", () => {
@@ -59,7 +54,7 @@ export function MapView({ forecasts, selectedId, editingId, onTogglePolygon, onL
       for (const f of POLYGONS.features) {
         const el = document.createElement("div");
         el.className = "polylabel"; el.textContent = f.properties.name;
-        new window.maplibregl.Marker({ element: el }).setLngLat(centroid(f.geometry.coordinates[0])).addTo(m);
+        new window.maplibregl.Marker({ element: el }).setLngLat(labelPoint(f)).addTo(m);
       }
       paint();
     });
@@ -111,9 +106,8 @@ export function MapView({ forecasts, selectedId, editingId, onTogglePolygon, onL
     if (!d || d.pts.length < 3) return;
     const m = map.current; const hit = [];
     for (const f of POLYGONS.features) {
-      const ring = f.geometry.coordinates[0];
-      const c = m.project(centroid(ring));
-      const inside = pointInPoly([c.x, c.y], d.pts) || ring.some((ll) => { const q = m.project(ll); return pointInPoly([q.x, q.y], d.pts); });
+      const c = m.project(labelPoint(f));
+      const inside = pointInPoly([c.x, c.y], d.pts) || outerRings(f).some((ring) => ring.some((ll) => { const q = m.project(ll); return pointInPoly([q.x, q.y], d.pts); }));
       if (inside) hit.push(f.id);
     }
     if (hit.length) latest.current.onLasso?.(hit, d.remove || e.shiftKey);

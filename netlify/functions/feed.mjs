@@ -5,7 +5,7 @@
 //   sms            → plain-text SMS message(s), ready to hand to a texting service
 // Forecasts past their expiry are left out even if nobody has opened the app since.
 import { getStore } from "@netlify/blobs";
-import { POLYGON_NAME } from "../../src/polygons.js";
+import { PLACEHOLDER } from "../../src/polygons.js";
 import { UI_FR } from "../../src/content.js";
 
 export default async (req) => {
@@ -24,7 +24,9 @@ export default async (req) => {
 
 // Pure renderer (no Netlify APIs) so it can be exercised locally.
 export function render(state, { format = "json", lang = "en", origin = "", now = new Date() } = {}) {
-  const forecasts = liveForecasts(state, now).map((f) => shape(f, lang, origin));
+  const fc = state?.geo?.fc?.features?.length ? state.geo.fc : PLACEHOLDER; // imported polygons, else placeholders
+  const names = Object.fromEntries(fc.features.map((f) => [f.id, f.properties.name]));
+  const forecasts = liveForecasts(state, now).map((f) => shape(f, lang, origin, names));
   if (format === "sms") return { type: "text/plain; charset=utf-8", body: sms(forecasts) };
   if (format === "rss") return { type: "application/rss+xml; charset=utf-8", body: rss(forecasts, lang, origin, now) };
   if (format !== "json") return { status: 400, type: "application/json", body: JSON.stringify({ error: "format must be json, rss or sms" }) };
@@ -62,7 +64,7 @@ const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", 
 const addDays = (dateStr, n) => { const d = new Date(dateStr + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d; };
 const iso = (d) => d.toISOString().slice(0, 10);
 
-function shape(f, lang, origin) {
+function shape(f, lang, origin, names) {
   const T = (s) => (lang === "fr" ? UI_FR[s] || s : s);
   const L = (field) => (field ? (lang === "fr" ? field.fr || field.en : field.en) || "" : "");
   const base = f.dayOne === "Issue Date" ? 0 : 1;
@@ -83,20 +85,22 @@ function shape(f, lang, origin) {
   const first = f.cards[1];
   const headline = L(f.comms?.headline);
   const smsText = toText(L(f.comms?.sms)) || toText(headline).slice(0, 140);
-  const translationRequired = lang === "fr" && [...f.cards.flatMap((c) => [c.weather, c.snowpack, c.avalanche]), f.comms?.headline, f.comms?.sms].some((x) => x && x.tr && (x.en || x.fr));
+  const texts = [...f.cards.flatMap((c) => [c.weather, c.snowpack, c.avalanche, ...(c.problems || []).map((p) => p.desc)]), f.comms?.headline, f.comms?.sms];
+  const translationRequired = lang === "fr" && texts.some((x) => x && x.tr === true && (x.en || x.fr));
+  const machineTranslated = lang === "fr" && texts.some((x) => x && x.tr === "machine");
   return {
     id: f.id, name: f.name, forecaster: f.forecaster,
     issued: zonedToUtc(f.issued, f.issuedTime || "17:00", zone).toISOString(),
     validUntil: zonedToUtc(f.expiry, f.expiryTime || "17:00", zone).toISOString(),
     published: f.publishedAt || f.modified || null,
-    areas: (f.polygons || []).map((id) => ({ id, name: POLYGON_NAME[id] || id })),
+    areas: (f.polygons || []).filter((id) => names[id]).map((id) => ({ id, name: names[id] })),
     headline: { html: headline, text: toText(headline) },
     sms: smsText,
     days,
     problems,
     summaries: { snowpack: summary("snowpack"), avalanche: summary("avalanche"), weather: summary("weather") },
     confidence: { rating: T(first.confidence), statements: first.confidenceStatements || [] },
-    translationRequired,
+    translationRequired, machineTranslated,
     url: `${origin}/#/forecasts/${f.id}/preview`,
   };
 }

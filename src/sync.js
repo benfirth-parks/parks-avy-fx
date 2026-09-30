@@ -5,7 +5,7 @@ import { useSyncExternalStore } from "react";
 const API = "/.netlify/functions/state";
 let deps = null;
 let version = 0;
-let status = "local"; // local | saving | saved | offline | conflict
+let status = "local"; // local | saving | saved | offline | conflict | auth
 let lastSyncedAt = null;
 let lastBy = "";
 let timer = null;
@@ -13,6 +13,7 @@ let inflight = null;
 let dirty = false;
 let server = null;
 let lastError = "";
+let needAuth = false; // a request came back 401; wait for sign-in, then resume()
 const fail = (where, e) => { lastError = `${where}: ${e && e.message ? e.message : e} (${new Date().toLocaleTimeString()})`; }; // null = unknown, true = reachable, false = no API here (local file, preview host)
 const listeners = new Set();
 const setStatus = (s) => { status = s; listeners.forEach((l) => l()); };
@@ -24,27 +25,46 @@ export const syncInfo = () => ({ status, version, lastSyncedAt, lastBy, lastErro
 
 const canSync = () => typeof fetch === "function" && /^https?:/.test(location.protocol);
 
+const authFail = (r) => {
+  if (r.status !== 401) return false;
+  needAuth = true;
+  setStatus("auth");
+  deps.onUnauthorized?.();
+  return true;
+};
 async function get() {
-  const r = await fetch(API, { cache: "no-store" });
+  const r = await fetch(API, { cache: "no-store", credentials: "same-origin" });
+  if (authFail(r)) throw Object.assign(new Error("sign in required"), { auth: true });
   if (!r.ok) throw new Error("GET " + r.status + " " + (await r.text()).slice(0, 200));
   return r.json();
 }
 async function put(state) {
-  const r = await fetch(API, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ version, state, by: deps.getUser() }) });
+  const r = await fetch(API, { method: "PUT", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ version, state }) });
+  if (authFail(r)) throw Object.assign(new Error("sign in required"), { auth: true });
   if (r.status === 409) return { conflict: await r.json() };
   if (!r.ok) throw new Error("PUT " + r.status + " " + (await r.text()).slice(0, 300));
   return r.json();
 }
 
+let resumeBoot = null;
+// Signed in again after a 401: re-read the shared document, merge local edits, save.
+export function resume() {
+  if (!needAuth) return;
+  needAuth = false;
+  resumeBoot?.();
+}
+
 export function start(d) {
   deps = d;
   if (!canSync()) return;
-  const tryBoot = () => boot().catch((e) => { fail("boot", e); if (server === null) { server = false; setStatus("local"); } else setStatus("offline"); });
+  const tryBoot = () => boot().catch((e) => { fail("boot", e); if (e.auth) return; if (server === null) { server = false; setStatus("local"); } else setStatus("offline"); });
+  resumeBoot = tryBoot;
   tryBoot();
   setInterval(() => {
-    if (document.visibilityState !== "visible") return;
+    if (document.visibilityState !== "visible" || needAuth) return;
     if (server === false) return tryBoot();
-    if (server && !inflight && !dirty) poll().catch((e) => { fail("poll", e); setStatus("offline"); });
+    if (server && !inflight && dirty && !timer) return scheduleSave(); // retry a save that failed while offline
+    if (server && !inflight && !dirty) poll().catch((e) => { fail("poll", e); if (!e.auth) setStatus("offline"); });
   }, 15_000);
   addEventListener("online", tryBoot);
 }
@@ -78,9 +98,10 @@ async function poll() {
 export function scheduleSave() {
   if (!canSync() || !deps || server !== true) return;
   dirty = true;
+  if (needAuth) return; // kept locally; saved after sign-in
   setStatus("saving");
   clearTimeout(timer);
-  timer = setTimeout(() => save().catch((e) => { fail("save", e); setStatus("offline"); }), 700);
+  timer = setTimeout(() => { timer = null; save().catch((e) => { fail("save", e); dirty = true; if (!e.auth) setStatus("offline"); }); }, 700);
 }
 
 async function save() {
@@ -97,6 +118,7 @@ async function save() {
       if (res.conflict) { setStatus("conflict"); return; }
     }
     version = res.version; lastSyncedAt = res.updatedAt; lastBy = deps.getUser();
+    if (dirty) return; // another change arrived mid-save; the finally below saves again
     setStatus("saved");
   })().finally(() => { inflight = null; if (dirty) scheduleSave(); });
   return inflight;

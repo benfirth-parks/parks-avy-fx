@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { POLYGONS } from "./polygons.js";
+import { POLYGONS, outerRings, labelPoint } from "./polygons.js";
 import { colourOf } from "./store.js";
 
 // WebGL-free map: OpenTopoMap raster tiles in a slippy grid plus SVG polygons.
@@ -10,15 +10,10 @@ const GREY = { hex: "#5c5a7a", opacity: 0.42, line: "#6e5db0" };
 const lon2x = (lon, z) => ((lon + 180) / 360) * Math.pow(2, z) * TILE;
 const lat2y = (lat, z) => { const r = (lat * Math.PI) / 180; return ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * Math.pow(2, z) * TILE; };
 
-function bbox() {
+export function polygonBounds() {
   let w = 180, s = 90, e = -180, n = -90;
-  for (const f of POLYGONS.features) for (const [x, y] of f.geometry.coordinates[0]) { w = Math.min(w, x); e = Math.max(e, x); s = Math.min(s, y); n = Math.max(n, y); }
+  for (const f of POLYGONS.features) for (const r of outerRings(f)) for (const [x, y] of r) { w = Math.min(w, x); e = Math.max(e, x); s = Math.min(s, y); n = Math.max(n, y); }
   return { w, s, e, n };
-}
-function centroid(ring) {
-  let x = 0, y = 0, n = ring.length - 1;
-  for (let i = 0; i < n; i++) { x += ring[i][0]; y += ring[i][1]; }
-  return [x / n, y / n];
 }
 function shade(hex) {
   const n = parseInt(hex.slice(1), 16);
@@ -51,7 +46,7 @@ export function SvgMap({ forecasts, selectedId, editingId, onTogglePolygon, onLa
   }, []);
   useEffect(() => {
     if (view) return;
-    const b = bbox();
+    const b = polygonBounds();
     let z = 12;
     while (z > 4 && (lon2x(b.e, z) - lon2x(b.w, z) > size.w * 0.9 || lat2y(b.s, z) - lat2y(b.n, z) > size.h * 0.9)) z--;
     setView({ z, cx: (lon2x(b.w, z) + lon2x(b.e, z)) / 2, cy: (lat2y(b.n, z) + lat2y(b.s, z)) / 2 });
@@ -77,11 +72,13 @@ export function SvgMap({ forecasts, selectedId, editingId, onTogglePolygon, onLa
     const fc = byPoly[f.id];
     let fill = GREY.hex, opacity = GREY.opacity, line = GREY.line;
     if (fc) { const c = colourOf(fc); const focus = !selectedId && !editingId ? true : fc.id === selectedId || fc.id === editingId; fill = c.hex; opacity = focus ? 0.82 : 0.35; line = shade(c.hex); }
-    const pts = f.geometry.coordinates[0].map(project);
-    const [lx, ly] = project(centroid(f.geometry.coordinates[0]));
+    // Rings (outer + holes) as one path with even-odd fill.
+    const polysOf = f.geometry.type === "MultiPolygon" ? f.geometry.coordinates : [f.geometry.coordinates];
+    const d = polysOf.flatMap((rings) => rings.map((r) => "M" + r.map((c) => project(c).map((v) => v.toFixed(1)).join(" ")).join("L") + "Z")).join("");
+    const [lx, ly] = project(labelPoint(f));
     return (
       <g key={f.id}>
-        <polygon points={pts.map((p) => p.join(",")).join(" ")} fill={fill} fillOpacity={opacity} stroke={line} strokeWidth="1.6" style={{ cursor: editingId ? "pointer" : "default" }} onClick={() => { if (editingId && !lasso) onTogglePolygon?.(f.id); }} />
+        <path d={d} fillRule="evenodd" fill={fill} fillOpacity={opacity} stroke={line} strokeWidth="1.6" style={{ cursor: editingId ? "pointer" : "default" }} onClick={() => { if (editingId && !lasso) onTogglePolygon?.(f.id); }} />
         <text x={lx} y={ly} fontSize="11" textAnchor="middle" fill="#1f1f1f" stroke="#fff" strokeWidth="3" paintOrder="stroke" style={{ pointerEvents: "none" }}>{f.properties.name}</text>
       </g>
     );
@@ -104,7 +101,7 @@ export function SvgMap({ forecasts, selectedId, editingId, onTogglePolygon, onLa
   const onUp = (e) => {
     const l = lassoRef.current; lassoRef.current = null; setPath(null);
     if (l && l.pts.length >= 3) {
-      const hit = POLYGONS.features.filter((f) => { const ring = f.geometry.coordinates[0]; return pointInPoly(project(centroid(ring)), l.pts) || ring.some((ll) => pointInPoly(project(ll), l.pts)); }).map((f) => f.id);
+      const hit = POLYGONS.features.filter((f) => pointInPoly(project(labelPoint(f)), l.pts) || outerRings(f).some((ring) => ring.some((ll) => pointInPoly(project(ll), l.pts)))).map((f) => f.id);
       if (hit.length) onLasso?.(hit, l.remove || e.shiftKey);
     }
     drag.current = null;

@@ -5,6 +5,7 @@ import { ask } from "./dialog.jsx";
 import { go } from "./App.jsx";
 import { Icons } from "./icons.jsx";
 import { webglAvailable } from "./SvgMap.jsx";
+import { useAuth } from "./auth.js";
 
 const STATUSES = ["active", "developing", "dormant"];
 const GRAINS = ["Surface Hoar", "Facets", "Depth Hoar", "Crust", "Crust/Facet", "Decomposing & Fragmented", "Rounded Grains", "Precipitation Particles", "Melt-Freeze Crust", "Mixed Forms"];
@@ -69,6 +70,7 @@ export function WeakLayers() {
 export function Documentation() {
   const status = useSyncStatus();
   const info = syncInfo();
+  const auth = useAuth();
   return (
     <div className="page doc">
       <h1>Documentation</h1>
@@ -83,10 +85,14 @@ export function Documentation() {
         <li><b>Clone to Draft</b> copies a live or completed forecast. Copied text is flagged <span className="tag red">Translation Required</span> until the French side is saved again.</li>
         <li><b>Delete Drafts and Start New Day</b> (Completed or Live view) clears every draft.</li>
       </ol>
-      <h2>Translation Required</h2>
-      <p>Saving an English field flags its French counterpart; saving the French field clears the flag. The badge is a reminder, not a block on publishing.</p>
-      <h2>Who is signed in</h2>
-      <p>Click the initials at the top right to pick who you are. New forecasts and edits are recorded under that name. It is remembered per browser.</p>
+      <h2>Translation</h2>
+      <p>Saving an English field flags its French counterpart <span className="tag red">Translation Required</span>; saving the French field clears the flag. The badge is a reminder, not a block on publishing.</p>
+      <p><b>Translate</b> (draft forecast details) machine-translates every flagged English field, and any with no French yet, using the free MyMemory service. Formatting and links are kept. The French is tagged <span className="tag amber">Machine translated — review</span> until someone edits it. The free quota is about 5,000 words a day; setting <code>MYMEMORY_EMAIL</code> in the Netlify environment raises it to about 50,000.</p>
+      <h2>Accounts</h2>
+      <p>Everyone signs in with their own username and password. Edits and "last change by" are recorded under that name, and the Forecaster list is the list of accounts. Use the initials menu (top right) for <b>Account</b> (change password) and <b>Sign out</b>. Admins also get <b>Users</b> (add people, reset passwords, remove accounts) and <b>Forecast polygons</b>. Forgotten passwords are reset by an admin. Sessions last 30 days; changing or resetting a password signs that person out everywhere else.</p>
+      <p>Signing out clears this browser's copy of the forecasts. If the connection drops, the app keeps working on the last session and sends changes when it's back.</p>
+      <h2>Forecast polygons</h2>
+      <p>Admins import the real forecast polygons (GeoJSON) under <b>Forecast polygons</b> in the initials menu. The import is shared with everyone and polygons keep their ids when names match.</p>
       <h2>Shared storage</h2>
       <p>Forecasts and weak layers are saved to a shared team document a moment after every change and picked up by everyone else within about fifteen seconds. If two people change the same forecast at once, the later edit wins for that forecast; other forecasts are unaffected. The dot beside the initials shows the state: green saved, amber saving, red offline (changes are kept in this browser and sent when the connection returns).</p>
       <p className="muted">Status now: {status}{info.version ? ` · shared document v${info.version}` : ""}{info.lastBy ? ` · last change by ${info.lastBy}` : ""}</p>
@@ -100,15 +106,10 @@ export function Documentation() {
           return <li key={k}><a href={href} target="_blank" rel="noreferrer">{t}</a> — {d} · <code>{location.origin}{href}</code></li>;
         })}
       </ul>
-      <h2>Known gaps</h2>
-      <ul>
-        <li>Map polygons are hand-drafted placeholders until the real BYK forecast polygons (GeoJSON) are loaded into <code>src/polygons.js</code>.</li>
-        <li>Translate is a stub; a translation service still needs to be chosen.</li>
-        <li>No per-person login yet; the site relies on Netlify team access.</li>
-        <li>SMS text is published as a feed; nothing sends texts yet (needs a texting service to poll it).</li>
-      </ul>
+      <h2>Texting the SMS message</h2>
+      <p><b>Send SMS</b> (live forecast details) texts the English SMS message, or French for recipients marked <code>:fr</code>. It is off until these Netlify environment variables are set: <code>TWILIO_ACCOUNT_SID</code>, <code>TWILIO_AUTH_TOKEN</code>, <code>TWILIO_FROM</code> (the sending number or messaging service id) and <code>SMS_RECIPIENTS</code> (for example <code>+14035550101,+14035550102:fr</code>).</p>
       <h2>Demo data</h2>
-      <button className="btn danger" onClick={async () => { if (await ask({ title: "Reset demo data", message: "Replace everything with the seed forecast? This also overwrites the shared document for the whole team.", okLabel: "Reset", danger: true })) resetDemo(); }}>Reset demo data</button>
+      {auth.phase === "signedIn" && !auth.user?.admin ? <p className="muted">An admin can reset the demo data.</p> : <button className="btn danger" onClick={async () => { if (await ask({ title: "Reset demo data", message: "Replace everything with the seed forecast? This also overwrites the shared document for the whole team.", okLabel: "Reset", danger: true })) resetDemo(); }}>Reset demo data</button>}
     </div>
   );
 }

@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { MapView } from "./MapView.jsx";
 import { go } from "./App.jsx";
-import { useStore, addForecast, blankForecast, updateForecast, deleteForecast, deleteDraftsStartNewDay, cloneToDraft, publishForecast, progress, colourOf, unassignedCount, fmtStamp, getUser, COLOURS, FORECASTERS, TIMEZONES } from "./store.js";
+import { useStore, addForecast, blankForecast, updateForecast, deleteForecast, deleteDraftsStartNewDay, cloneToDraft, publishForecast, progress, colourOf, unassignedCount, fmtStamp, getUser, COLOURS, forecasterNames, TIMEZONES } from "./store.js";
 import { Icons, Hint } from "./icons.jsx";
 import { ask, notify } from "./dialog.jsx";
-import { POLYGON_IDS } from "./polygons.js";
+import { translateForecast, translatableCount } from "./translate.js";
+import { smsStatus, sendSms } from "./sms.js";
+import { POLYGON_IDS, POLYGON_VERSION } from "./polygons.js";
 
 const FILTERS = [["draft", "Draft"], ["completed", "Completed"], ["live", "Live"]];
 
@@ -29,6 +31,7 @@ export function ForecastsPage({ route }) {
   return (
     <div className="split">
       <MapView
+        key={POLYGON_VERSION}
         forecasts={mapForecasts}
         selectedId={selected?.id}
         editingId={editing ? selected.id : null}
@@ -104,6 +107,7 @@ function DetailDrawer({ f }) {
           <div className="row" style={{ gap: 16, marginTop: 18 }}>
             <button className="btn" onClick={() => go(`/forecasts/${cloneToDraft(f.id)}`)}>Clone to Draft</button>
             <button className="btn" onClick={() => go(`/forecasts/${f.id}/preview`)}>Preview</button>
+            {live && <SmsButton f={f} />}
           </div>
         ) : (
           <>
@@ -113,7 +117,7 @@ function DetailDrawer({ f }) {
               <button className="btn" onClick={() => go(`/forecasts/${cloneToDraft(f.id)}`)}>Clone to Draft</button>
             </div>
             <div className="row" style={{ gap: 16, marginTop: 14 }}>
-              <button className="btn dis" disabled title="Machine translation not connected in the demo">Translate</button>
+              <TranslateButton f={f} />
               <button className="btn" onClick={() => go(`/forecasts/${f.id}/preview`)}>Preview</button>
               {f.status === "draft" && <button className="btn primary" onClick={async () => { if (f.polygons.length === 0) return notify("Assign at least one polygon (Edit Setup) before publishing.", "Cannot publish"); if (await ask({ title: "Publish forecast", message: `Publish "${f.name}" to Live? Any live forecast covering the same polygons will move to Completed.`, okLabel: "Publish" })) { publishForecast(f.id); go(`/forecasts?filter=live`); } }}>Publish</button>}
             </div>
@@ -123,6 +127,44 @@ function DetailDrawer({ f }) {
       </div>
     </>
   );
+}
+
+function TranslateButton({ f }) {
+  const [busy, setBusy] = useState(false);
+  const n = translatableCount(f);
+  const run = async () => {
+    if (!n) return notify("Nothing needs translating: every English field with text already has French that isn't flagged Translation Required.", "Translate");
+    if (!(await ask({ title: "Translate to French", message: `Machine-translate ${n} English field${n === 1 ? "" : "s"} flagged Translation Required (or with no French yet)? The French is replaced and marked "Machine translated — review".`, okLabel: "Translate" }))) return;
+    setBusy(true);
+    try {
+      const done = await translateForecast(f.id);
+      notify(`Translated ${done} field${done === 1 ? "" : "s"}. Review the French before publishing: fields are tagged "Machine translated — review" until the French is edited.`, "Translation done");
+    } catch (e) { notify(e.message || String(e), "Translation failed"); }
+    setBusy(false);
+  };
+  return <button className="btn" disabled={busy} onClick={run} title={n ? `${n} field${n === 1 ? "" : "s"} to translate` : "Nothing to translate"}>{busy ? "Translating…" : "Translate"}</button>;
+}
+
+function SmsButton({ f }) {
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    try {
+      const st = await smsStatus();
+      if (!st.configured) { setBusy(false); return notify("Texting isn't set up. Add the Twilio settings listed on the Documentation page to the Netlify site, then try again. The SMS text is still available from the public SMS feed.", "Send SMS"); }
+      const text = (f.comms.sms.en || "").trim();
+      if (!text) { setBusy(false); return notify("This forecast has no English SMS message (Communications → SMS Message).", "Send SMS"); }
+      if (await ask({ title: "Send SMS", message: `Text this forecast's SMS message to ${st.recipients} recipient${st.recipients === 1 ? "" : "s"}?${f.smsSentAt ? ` It was already sent ${fmtStamp(f.smsSentAt)}.` : ""}
+
+${text}`, okLabel: "Send" })) {
+        const r = await sendSms(f.id);
+        updateForecast(f.id, (x) => ({ ...x, smsSentAt: r.sentAt }));
+        notify(`Sent to ${r.sent} of ${r.total} recipients.${r.failed?.length ? ` Failed: ${r.failed.join(", ")}` : ""}`, "SMS sent");
+      }
+    } catch (e) { notify(e.message || String(e), "SMS failed"); }
+    setBusy(false);
+  };
+  return <button className="btn" disabled={busy} onClick={run}>{busy ? "Sending…" : "Send SMS"}</button>;
 }
 
 function Field({ k, v, pre }) {
@@ -147,7 +189,7 @@ function SetupDrawer({ f }) {
         <label className="lbl req" style={{ marginTop: 22 }}>Forecast Name</label>
         <input className="inp" value={f.name} placeholder="e.g. May 1" onChange={(e) => set({ name: e.target.value })} autoFocus />
         <div className="grid2" style={{ marginTop: 22 }}>
-          <div><label className="lbl req">Forecaster</label><select className="sel" value={f.forecaster} onChange={(e) => set({ forecaster: e.target.value })}>{[...new Set([...FORECASTERS, getUser(), f.forecaster])].map((n) => <option key={n}>{n}</option>)}</select></div>
+          <div><label className="lbl req">Forecaster</label><select className="sel" value={f.forecaster} onChange={(e) => set({ forecaster: e.target.value })}>{[...new Set([...forecasterNames(), getUser(), f.forecaster])].map((n) => <option key={n}>{n}</option>)}</select></div>
           <div style={{ position: "relative" }}>
             <label className="lbl">Colour</label>
             <button className="btn" style={{ width: "100%", background: c.hex, borderColor: c.hex, color: c.text }} onClick={() => setPick(!pick)}>{c.name}</button>

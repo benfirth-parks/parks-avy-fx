@@ -1,7 +1,8 @@
 // Shared team document for the Parks Avy FX Tool, stored in Netlify Blobs.
 // GET  /api/state            → { version, state, updatedAt, updatedBy }
-// PUT  /api/state {version, state, by} → { version, updatedAt } or 409 with the current document
-import { getStore } from "@netlify/blobs";
+// PUT  /api/state {version, state} → { version, updatedAt } or 409 with the current document
+// Both need a signed-in account (netlify/functions/auth.mjs); the editor's name comes from the session.
+import { openStore, currentUser, unauthorized } from "../lib/auth.mjs";
 
 
 const KEY = "state";
@@ -16,7 +17,9 @@ export default async (req) => {
 };
 
 async function handle(req) {
-  const store = getStore({ name: "parks-avy-fx", consistency: "strong" });
+  const store = openStore();
+  const me = await currentUser(req, store);
+  if (!me) return unauthorized();
   if (req.method === "GET") {
     const doc = await store.get(KEY, { type: "json" });
     return json(doc || { version: 0, state: null });
@@ -28,7 +31,7 @@ async function handle(req) {
     if (JSON.stringify(body.state).length > MAX_BYTES) return json({ error: "Document too large" }, 413);
     const cur = (await store.get(KEY, { type: "json" })) || { version: 0 };
     if ((body.version ?? 0) !== (cur.version ?? 0)) return json(cur, 409);
-    const doc = { version: (cur.version ?? 0) + 1, state: body.state, updatedAt: new Date().toISOString(), updatedBy: String(body.by || "").slice(0, 80) };
+    const doc = { version: (cur.version ?? 0) + 1, state: body.state, updatedAt: new Date().toISOString(), updatedBy: me.name };
     await store.setJSON(KEY, doc);
     // Keep a short history for recovery.
     try { await store.setJSON(`history/${doc.version}`, doc); } catch {}

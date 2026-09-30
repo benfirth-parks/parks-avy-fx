@@ -8,6 +8,9 @@ import { Editor } from "./Editor.jsx";
 import { Preview } from "./Preview.jsx";
 import { WeakLayers, Documentation, Archive } from "./OtherPages.jsx";
 import { Dialogs } from "./dialog.jsx";
+import { useAuth, boot, logout } from "./auth.js";
+import { Login } from "./Login.jsx";
+import { Account, Users, PolygonsAdmin } from "./AdminPages.jsx";
 
 // State-based router mirrored to the URL hash (hash deep-links may be stripped by some hosts).
 let current = (location.hash || "").replace(/^#/, "") || "/forecasts";
@@ -34,8 +37,15 @@ export function Nav({ active, hideAvatar }) {
   useStore(); // re-render on identity change
   const user = getUser();
   const info = syncInfo();
-  const label = { local: "Local only", saving: "Saving…", saved: "Saved", offline: "Offline · saved locally", conflict: "Sync conflict" }[status];
+  const auth = useAuth();
+  const label = { local: "Local only", saving: "Saving…", saved: "Saved", offline: "Offline · saved locally", conflict: "Sync conflict", auth: "Sign in to sync" }[status];
   const title = status === "saved" && info.lastSyncedAt ? `Shared document v${info.version} · last change ${relTime(info.lastSyncedAt)}${info.lastBy ? " by " + info.lastBy : ""}` : info.lastError ? `${label} — ${info.lastError}` : label;
+  const signOut = async () => {
+    setOpen(false);
+    if (["saving", "offline", "conflict", "auth"].includes(status) && !(await ask({ title: "Sign out", message: "Some changes haven't reached the shared document yet and will be lost from this browser if you sign out now. Sign out anyway?", okLabel: "Sign out", danger: true }))) return;
+    logout();
+  };
+  const nav = (p) => { setOpen(false); go(p); };
   const pick = async (name) => {
     if (name === "__other") {
       const n = await ask({ title: "Sign in as", message: "Your name as it should appear on forecasts", input: "", okLabel: "Continue" });
@@ -53,8 +63,16 @@ export function Nav({ active, hideAvatar }) {
           {open && (
             <div className="menu usermenu">
               <div className="mi muted" style={{ cursor: "default" }}>Signed in as <b style={{ color: "#1f1f1f" }}>{user}</b></div>
-              {[...new Set([...FORECASTERS, user])].map((n) => <div key={n} className={"mi" + (n === user ? " cur" : "")} onMouseDown={() => pick(n)}>{n}</div>)}
-              <div className="mi" onMouseDown={() => pick("__other")}>Someone else…</div>
+              {auth.phase === "signedIn" ? (<>
+                <div className="mi" onMouseDown={() => nav("/account")}>Account</div>
+                {auth.user?.admin && <div className="mi" onMouseDown={() => nav("/users")}>Users</div>}
+                {auth.user?.admin && <div className="mi" onMouseDown={() => nav("/polygons")}>Forecast polygons</div>}
+                <div className="mi" onMouseDown={signOut}>Sign out</div>
+              </>) : (<>
+                {[...new Set([...FORECASTERS, user])].map((n) => <div key={n} className={"mi" + (n === user ? " cur" : "")} onMouseDown={() => pick(n)}>{n}</div>)}
+                <div className="mi" onMouseDown={() => pick("__other")}>Someone else…</div>
+                <div className="mi" onMouseDown={() => nav("/polygons")}>Forecast polygons</div>
+              </>)}
             </div>
           )}
         </div>
@@ -70,6 +88,9 @@ function Screens() {
   if (root === "weak-layers") return <><Nav active="Weak Layers" /><WeakLayers /></>;
   if (root === "documentation") return <><Nav active="Documentation" /><Documentation /></>;
   if (root === "archive") return <><Nav active="Archive" /><Archive /></>;
+  if (root === "account") return <><Nav active="" /><Account /></>;
+  if (root === "users") return <><Nav active="" /><Users /></>;
+  if (root === "polygons") return <><Nav active="" /><PolygonsAdmin /></>;
   if (root === "forecasts" && id && sub === "content") {
     const f = state.forecasts.find((x) => x.id === id);
     if (f) return <><Nav active="" /><Editor forecast={f} section={section || "weather"} /></>;
@@ -81,6 +102,11 @@ function Screens() {
   return <><Nav active="Avalanche Forecasts" /><ForecastsPage route={r} /></>;
 }
 
+boot();
+
 export default function App() {
+  const auth = useAuth();
+  if (auth.phase === "checking") return <div className="loginwrap"><div className="muted">Loading…</div></div>;
+  if (auth.phase === "signedOut") return <><Login /><Dialogs /></>;
   return <><Screens /><Dialogs /></>;
 }

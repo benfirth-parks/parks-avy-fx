@@ -32,7 +32,7 @@ export function RichText({ label, value, onChange, maxLen = 400, translationRequ
 
   return (
     <div className="rtefield">
-      <div className="rtelbl">{label}{translationRequired && <span className="tag red">Translation Required</span>}</div>
+      <div className="rtelbl">{label}{translationRequired === "machine" ? <span className="tag amber" title="Filled in by machine translation. Edit or re-save the French to confirm it.">Machine translated — review</span> : translationRequired && <span className="tag red">Translation Required</span>}</div>
       <div className={"rte" + (big ? " big" : "")} style={{ minHeight }}>
         <div className="rtebar">
           <Btn title="Clear" on={clear}>{Icons.trash}</Btn>
