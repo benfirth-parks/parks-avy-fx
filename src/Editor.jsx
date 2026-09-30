@@ -200,8 +200,16 @@ function Communications({ f, set }) {
   const comms = f.comms;
   const setC = (k, v) => set((x) => { x.comms[k] = v; return x; });
   const strip = (html) => { const d = document.createElement("div"); d.innerHTML = html; return d.textContent.trim().slice(0, 140); };
+  const banner = comms.banner || { en: "", fr: "", tr: false }; // forecasts made before the banner field existed
   return (
     <div className="commsbox">
+      <div className="acc open static">Banner <span className="muted" style={{ fontSize: 13, marginLeft: 8 }}>Optional notice shown in a blue box above the headline, e.g. area closures</span></div>
+      <div className="accbody pad">
+        <RichText label="English" value={banner.en} maxLen={280} minHeight={90} translationRequired={banner.tr} onChange={(en) => setC("banner", { ...banner, en, tr: true })} />
+        <div style={{ height: 16 }} />
+        <RichText label="French" value={banner.fr} maxLen={280} minHeight={90} translationRequired={banner.tr} onChange={(fr) => setC("banner", { ...banner, fr, tr: false })} translateFrom={banner.en} onTranslated={(fr) => set((x) => { x.comms.banner = { ...(x.comms.banner || {}), fr, tr: "machine" }; return x; })} />
+        <AddLanguage />
+      </div>
       <div className="acc open static">Headline</div>
       <div className="accbody pad">
         <RichText label="English" value={comms.headline.en} maxLen={280} minHeight={150} translationRequired={comms.headline.tr} onChange={(en) => setC("headline", { ...comms.headline, en, tr: true })} />

@@ -14,6 +14,7 @@ function fields(f) {
     for (const k of ["weather", "snowpack", "avalanche"]) out.push({ get: (x) => x.cards[i][k], set: (x, v) => { x.cards[i][k] = v; }, html: true });
     c.problems.forEach((p) => out.push({ get: (x) => x.cards[i].problems.find((q) => q.id === p.id)?.desc, set: (x, v) => { const q = x.cards[i].problems.find((q2) => q2.id === p.id); if (q) q.desc = v; }, html: true }));
   });
+  out.push({ get: (x) => x.comms.banner, set: (x, v) => { x.comms.banner = v; }, html: true });
   out.push({ get: (x) => x.comms.headline, set: (x, v) => { x.comms.headline = v; }, html: true });
   out.push({ get: (x) => x.comms.sms, set: (x, v) => { x.comms.sms = v; }, html: false });
   return out;

@@ -54,6 +54,7 @@ export function Preview({ forecast: f }) {
           <div><div className="fxk">{T("VALID UNTIL")}</div><div className="fxv">{fmt(f.expiry, f.expiryTime, f.timezone, lang)}</div></div>
         </div>
         <div className="fxmeta one"><div className="fxk">{T("PREPARED BY")} <span className="fxv inline">{f.forecaster}</span></div></div>
+        {L(f.comms.banner) && <div className="fxbanner" dangerouslySetInnerHTML={{ __html: L(f.comms.banner) }} />}
         {L(f.comms.headline) && <div className="fxhead" dangerouslySetInnerHTML={{ __html: L(f.comms.headline) }} />}
 
         <Section title={T("DANGER RATINGS")} info={() => notify(DANGER_SCALE, "North American Public Avalanche Danger Scale")} />

@@ -84,8 +84,9 @@ function shape(f, lang, origin, names) {
   const summary = (k) => { const field = f.cards.map((c) => c[k]).find((x) => x && (x.en || x.fr)); return field ? L(field) : ""; };
   const first = f.cards[1];
   const headline = L(f.comms?.headline);
+  const banner = L(f.comms?.banner);
   const smsText = toText(L(f.comms?.sms)) || toText(headline).slice(0, 140);
-  const texts = [...f.cards.flatMap((c) => [c.weather, c.snowpack, c.avalanche, ...(c.problems || []).map((p) => p.desc)]), f.comms?.headline, f.comms?.sms];
+  const texts = [...f.cards.flatMap((c) => [c.weather, c.snowpack, c.avalanche, ...(c.problems || []).map((p) => p.desc)]), f.comms?.banner, f.comms?.headline, f.comms?.sms];
   const translationRequired = lang === "fr" && texts.some((x) => x && x.tr === true && (x.en || x.fr));
   const machineTranslated = lang === "fr" && texts.some((x) => x && x.tr === "machine");
   return {
@@ -94,6 +95,7 @@ function shape(f, lang, origin, names) {
     validUntil: zonedToUtc(f.expiry, f.expiryTime || "17:00", zone).toISOString(),
     published: f.publishedAt || f.modified || null,
     areas: (f.polygons || []).filter((id) => names[id]).map((id) => ({ id, name: names[id] })),
+    banner: banner ? { html: banner, text: toText(banner) } : null,
     headline: { html: headline, text: toText(headline) },
     sms: smsText,
     days,
@@ -131,7 +133,7 @@ function rss(list, lang, origin, now) {
     const rating = first ? ` — ${first.day}: ${[first.danger.alpine, first.danger.treeline, first.danger.belowTreeline].join(" / ")}` : "";
     const rows = f.days.map((d) => `<tr><td>${esc(d.day)}</td><td>${esc(d.danger.alpine)}</td><td>${esc(d.danger.treeline)}</td><td>${esc(d.danger.belowTreeline)}</td></tr>`).join("");
     const head = fr ? ["Jour", "Alpin", "Limite forestière", "Sous la limite forestière"] : ["Day", "Alpine", "Treeline", "Below Treeline"];
-    const body = `${f.headline.html}<table><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr>${rows}</table>`
+    const body = `${f.banner ? `<p><strong>${f.banner.html}</strong></p>` : ""}${f.headline.html}<table><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr>${rows}</table>`
       + (f.areas.length ? `<p>${fr ? "Secteurs" : "Areas"}: ${esc(f.areas.map((a) => a.name).join(", "))}</p>` : "")
       + ["snowpack", "avalanche", "weather"].map((k) => f.summaries[k]).filter(Boolean).join("");
     return `<item><title>${esc(f.name + rating)}</title><link>${esc(f.url)}</link><guid isPermaLink="false">${esc(f.id + "@" + (f.published || f.issued))}</guid><pubDate>${new Date(f.published || f.issued).toUTCString()}</pubDate><description>${cdata(body)}</description></item>`;

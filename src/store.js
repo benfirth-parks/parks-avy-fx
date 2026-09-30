@@ -114,7 +114,7 @@ export const blankForecast = (over = {}) => ({
   cards: [blankCard(), blankCard(), blankCard(), blankCard()],
   visibleCards: [true, true, true, true],
   media: {},
-  comms: { headline: text(), sms: text() },
+  comms: { banner: text(), headline: text(), sms: text() },
   reviewNote: "",
   modified: nowIso(),
   modifiedBy: user,
@@ -254,7 +254,7 @@ export function cloneToDraft(id) {
   copy.modifiedBy = user;
   // Everything copied from another forecast needs a fresh translation pass.
   for (const c of copy.cards) for (const k of ["weather", "snowpack", "avalanche"]) if (c[k].en || c[k].fr) c[k].tr = true;
-  for (const k of ["headline", "sms"]) if (copy.comms[k].en || copy.comms[k].fr) copy.comms[k].tr = true;
+  for (const k of ["banner", "headline", "sms"]) if (copy.comms[k]?.en || copy.comms[k]?.fr) copy.comms[k].tr = true;
   return addForecast(copy);
 }
 export function publishForecast(id) {
