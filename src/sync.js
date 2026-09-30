@@ -2,7 +2,7 @@
 // Offline or unavailable (local file, sandboxed preview) → local-only mode, silently.
 import { useSyncExternalStore } from "react";
 
-const API = "/api/state";
+const API = "/.netlify/functions/state";
 let deps = null;
 let version = 0;
 let status = "local"; // local | saving | saved | offline | conflict

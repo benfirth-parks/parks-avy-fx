@@ -3,7 +3,6 @@
 // PUT  /api/state {version, state, by} → { version, updatedAt } or 409 with the current document
 import { getStore } from "@netlify/blobs";
 
-export const config = { path: "/api/state" };
 
 const KEY = "state";
 const MAX_BYTES = 5 * 1024 * 1024;
