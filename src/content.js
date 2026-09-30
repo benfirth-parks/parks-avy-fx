@@ -30,5 +30,14 @@ export const UI_FR = {
   "Spring": "Printemps", "Early Season": "Début de saison", "Summer Conditions": "Conditions estivales", "No Forecast": "Aucune prévision", "No Elevation": "Aucune élévation",
   Sunday: "Dimanche", Monday: "Lundi", Tuesday: "Mardi", Wednesday: "Mercredi", Thursday: "Jeudi", Friday: "Vendredi", Saturday: "Samedi",
   "Dry Loose": "Neige sèche sans cohésion", "Wet Loose": "Neige humide sans cohésion", "Storm Slab": "Plaque de tempête", "Wind Slab": "Plaque à vent",
-  "Persistent Slab": "Plaque persistante", "Deep Persistent Slab": "Plaque persistante profonde", "Wet Slab": "Plaque humide", "Cornice": "Corniche",
+  "Persistent Slab": "Plaque persistante",
+  W: "O", Problem: "Problème", LOCATION: "EMPLACEMENT", LIKELIHOOD: "PROBABILITÉ", SIZE: "TAILLE",
+  Certain: "Certaine", "Very Likely": "Très probable", Likely: "Probable", Possible: "Possible", Unlikely: "Peu probable",
+  Small: "Petite", Large: "Grande", "Very Large": "Très grande", "Below treeline": "Sous la limite forestière",
+ "Deep Persistent Slab": "Plaque persistante profonde", "Wet Slab": "Plaque humide", "Cornice": "Corniche",
+};
+
+export const DISCLAIMER = {
+  en: "This forecast is a general guide to avalanche conditions and is valid at the time of issue. Conditions change; always evaluate snow, weather and terrain for yourself.",
+  fr: "Ce bulletin est un guide général des conditions d'avalanche, valide au moment de sa publication. Les conditions évoluent; évaluez toujours vous-même la neige, la météo et le terrain.",
 };

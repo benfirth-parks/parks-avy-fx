@@ -1,40 +1,37 @@
 import React from "react";
 
+// Same order as AVID's danger rating dropdown.
 export const DANGER_LEVELS = [
-  "No Rating", "Low", "Moderate", "Considerable", "High", "Extreme",
+  "Extreme", "High", "Considerable", "Moderate", "Low", "No Rating",
   "Spring", "Early Season", "Summer Conditions", "No Forecast", "No Elevation",
 ];
 
+// AVID-style danger icon: diamond with a white upper half holding a black mountain,
+// and a lower half in the danger colour carrying the level's symbol.
+const DIAMOND = "M13 1 L25 13 L13 25 L1 13 Z";
+const MOUNTAIN = "M4.2 12.4 L9.6 6.4 L11.4 8.2 L14.6 4.4 L21.8 12.4 Z";
+const SNOW = "M14.6 4.4 L12.9 6.5 L13.9 7.3 L14.8 6.4 L16 7.2 L16.9 6.9 Z";
+const CLOUD = (fill = "#fff") => <path d="M17.6 7.8 a1.7 1.7 0 0 1 1.4 -2.6 a2.2 2.2 0 0 1 4.1 .7 a1.5 1.5 0 0 1 .2 3 h-5.5 a1.1 1.1 0 0 1 -.2 -1.1 Z" fill={fill} stroke="#222" strokeWidth=".7" />;
+const LOWER = "M1 13 L25 13 L13 25 Z";
 export function DangerIcon({ level, size = 26 }) {
-  const D = "M13 1 L25 13 L13 25 L1 13 Z";
-  const fill = { Low: "#52b043", Moderate: "#fff200", Considerable: "#f79a1e", High: "#e5231b", Extreme: "#1f1f1f" }[level];
-  let inner = null;
-  if (fill) {
-    inner = (
-      <>
-        <path d={D} fill={fill} stroke="#111" strokeWidth="1.2" />
-        <path d="M13 3 L19 13 H7 Z" fill="#111" />
-        {level === "Low" && <path d="M3.5 13 L13 22.5 L22.5 13 Z" fill="#52b043" />}
-        {level === "Moderate" && (<><path d="M9 13 L13 21 L17 13 Z" fill="#fff200" /><path d="M12.2 14.5h1.6v3.2h-1.6zM12.2 18.8h1.6v1.5h-1.6z" fill="#111" /></>)}
-        {level === "Considerable" && <path d="M8 13 L13 20 L18 13 Z" fill="#f79a1e" />}
-        {level === "High" && (<><path d="M10 4 L13 1 L16 4 Z" fill="#e5231b" /><circle cx="18" cy="4.5" r="2" fill="#e5231b" /></>)}
-        {level === "Extreme" && (<><path d="M6 7 L13 1 L20 7 Z" fill="#e5231b" /><path d="M13 13 L19 13 L13 19 L7 13 Z" fill="#111" /></>)}
-      </>
-    );
-  } else if (level === "Spring") {
-    inner = (<><path d={D} fill="#fff" stroke="#111" strokeWidth="1.2" /><path d="M13 3 L20 14 H6 Z" fill="#e5231b" /><path d="M6 14 L20 14 L13 23 Z" fill="#52b043" /><path d="M11 10h4v6h-4z" fill="#fff" /></>);
-  } else if (level === "Early Season") {
-    inner = (<><path d={D} fill="#fff" stroke="#111" strokeWidth="1.2" /><path d="M13 5 L20 15 H6 Z" fill="#111" /><path d="M8 15 L18 15 L13 21 Z" fill="#111" /><circle cx="13" cy="9" r="1.5" fill="#fff" /></>);
-  } else if (level === "Summer Conditions") {
-    inner = (<><path d={D} fill="#fff" stroke="#111" strokeWidth="1.2" /><path d="M6 17 L11 8 L14 13 L16 10 L20 17 Z" fill="#111" /></>);
-  } else if (level === "No Forecast") {
-    inner = (<><circle cx="13" cy="13" r="11" fill="#fff" stroke="#e5231b" strokeWidth="2" /><path d="M5 5 L21 21" stroke="#e5231b" strokeWidth="2" /><path d="M7 16 L11 10 L13 13 L15 11 L19 16 Z" fill="#111" /></>);
-  } else if (level === "No Elevation") {
-    inner = <path d="M4 4 L22 22 M22 4 L4 22" stroke="#e5231b" strokeWidth="2.2" />;
-  } else {
-    inner = <path d={D} fill="#fff" stroke="#bbb" strokeWidth="1.2" />;
+  const top = (<><path d={MOUNTAIN} fill="#1f1f1f" /><path d={SNOW} fill="#fff" /></>);
+  const frame = <path d={DIAMOND} fill="none" stroke="#1f1f1f" strokeWidth="1.1" strokeLinejoin="round" />;
+  const X = (c) => <path d="M10.4 14.9 L15.6 20.1 M15.6 14.9 L10.4 20.1" stroke={c} strokeWidth="1.9" strokeLinecap="round" />;
+  let inner;
+  switch (level) {
+    case "Extreme": inner = (<><path d={DIAMOND} fill="#fff" /><path d={LOWER} fill="#1f1f1f" />{top}{CLOUD()}{X("#e5231b")}</>); break;
+    case "High": inner = (<><path d={DIAMOND} fill="#fff" /><path d={LOWER} fill="#e5231b" />{top}{CLOUD()}{X("#1f1f1f")}</>); break;
+    case "Considerable": inner = (<><path d={DIAMOND} fill="#fff" /><path d={LOWER} fill="#f79a1e" />{top}{CLOUD()}<path d="M11.3 14.6v3.6M14.7 14.6v3.6" stroke="#1f1f1f" strokeWidth="1.6" strokeLinecap="round" /><circle cx="11.3" cy="20.4" r=".95" fill="#1f1f1f" /><circle cx="14.7" cy="20.4" r=".95" fill="#1f1f1f" /></>); break;
+    case "Moderate": inner = (<><path d={DIAMOND} fill="#fff" /><path d={LOWER} fill="#fff200" />{top}<path d="M13 14.6v3.8" stroke="#1f1f1f" strokeWidth="1.8" strokeLinecap="round" /><circle cx="13" cy="20.7" r="1" fill="#1f1f1f" /></>); break;
+    case "Low": inner = (<><path d={DIAMOND} fill="#fff" /><path d={LOWER} fill="#52b043" />{top}<path d="M9.6 17.2 L12.2 19.8 L16.6 14.9" fill="none" stroke="#1f1f1f" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></>); break;
+    case "Spring": inner = (<><path d={DIAMOND} fill="#fff" /><path d="M1 13 L13 13 L13 25 Z" fill="#e5231b" /><path d="M13 13 L25 13 L13 25 Z" fill="#52b043" />{top}<circle cx="19.5" cy="6.2" r="2" fill="#fff" stroke="#e5231b" strokeWidth=".8" /><path d="M13 15.2v4.5" stroke="#1f1f1f" strokeWidth="1.5" strokeLinecap="round" /></>); break;
+    case "Early Season": inner = (<><path d={DIAMOND} fill="#fff" />{top}<circle cx="13" cy="17.6" r="2.2" fill="#1f1f1f" /></>); break;
+    case "Summer Conditions": case "No Rating": inner = (<><path d={DIAMOND} fill="#fff" />{top}</>); break;
+    case "No Forecast": return (<svg width={size} height={size} viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="11" fill="#fff" stroke="#e5231b" strokeWidth="2.4" /><path d="M5.5 16.5 L10 11 L12.2 13.2 L14.6 10.3 L20.5 16.5 Z" fill="#1f1f1f" /><path d="M5.2 5.2 L20.8 20.8" stroke="#e5231b" strokeWidth="2.4" /></svg>);
+    case "No Elevation": return (<svg width={size} height={size} viewBox="0 0 26 26" aria-hidden="true"><path d="M5 15.5 L10 10 L12.4 12.4 L15 9.4 L21 15.5 Z" fill="#9a9a9a" /><path d="M5 5 L21 21 M21 5 L5 21" stroke="#e5231b" strokeWidth="2.4" strokeLinecap="round" /></svg>);
+    default: inner = (<><path d={DIAMOND} fill="#fff" /><path d={MOUNTAIN} fill="#bbb" /></>);
   }
-  return <svg width={size} height={size} viewBox="0 0 26 26" aria-hidden="true">{inner}</svg>;
+  return <svg width={size} height={size} viewBox="0 0 26 26" aria-hidden="true">{inner}{frame}</svg>;
 }
 
 // 8 aspect sectors × 3 elevation rings. `selected` = Set of "aspect:ring" keys.

@@ -150,23 +150,38 @@ button{font-family:inherit}
 /* preview */
 .preview{flex:1;overflow:auto;background:#fff;font-family:"DM Sans",var(--font)}
 .pbar{position:sticky;top:0;background:#fff;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;padding:10px 24px;z-index:2}
-.ppage{width:1040px;max-width:100%;margin:0 auto;padding:44px 0 40px}
-.pmeta{font-size:12px;border-bottom:1px solid #e6e6e6;padding-bottom:8px}.pk{color:#4b4fd2;font-weight:700;letter-spacing:1px;font-size:12px}.pv{font-weight:600;margin-top:4px;color:#333;font-size:12px}
-.pmeta2{padding:8px 0 12px;border-bottom:1px solid #e6e6e6;display:flex;align-items:center}
-.phead{text-align:center;font-size:22px;font-weight:700;color:#444;line-height:1.5;padding:30px 10px 22px}.phead p{margin:0 0 14px}
-.psect{height:46px;background:#e3e5fb;color:#4b4fd2;font-size:12px;letter-spacing:1.4px;font-weight:700;display:flex;align-items:center;justify-content:space-between;padding:0 16px;margin-top:22px}
-.pinfo{width:24px;height:24px;border:2px solid #4b4fd2;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;letter-spacing:0;font-family:Georgia,serif}
-.pday{background:#1c1a2e;color:#fff;height:50px;display:flex;align-items:center;padding-left:14px;font-size:16px}
-.mountain{position:relative;height:330px;background:#e9f2fb;overflow:hidden}.mtn{position:absolute;left:0;top:0}
-.band{position:absolute;left:290px;right:0;height:90px;background:#fff;border:1px solid #333;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:700}
-.bandicon{position:absolute;left:-44px;top:4px}
-.prow{display:flex;align-items:center;height:50px;margin-top:2px}.prow-l{width:400px;height:48px;display:flex;align-items:center;padding-left:14px;font-size:15px}.prow-v{padding-left:14px;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
-.pnone{color:#4b4fd2;font-size:20px;font-weight:700;padding:22px 14px 0}
-.ptext{padding:20px 14px 0;font-size:16px;line-height:30px;color:#333}.ptext p{margin:0}
-.plist{padding:16px 14px 0 34px;font-size:16px;line-height:28px;color:#333}
-.pproblem{padding:20px 14px 0}.pimg{max-width:100%;margin:14px 14px 0;border-radius:4px}
-.pconf{padding:22px 14px 0;font-size:16px;font-weight:700;color:#333}
-.pdisc{margin-top:22px;height:52px;background:#000;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:16px;font-weight:700}.pdisc span{font-size:26px;font-weight:400}
+/* public forecast page (AVID / avalanche.ca layout) */
+.fx{--ink:#333;--navy:#17152a;--lav:#e3e5fb;--accent:#3d3fa3;width:900px;max-width:100%;margin:0 auto;padding:36px 16px 48px;color:var(--ink);font-size:15px}
+.fxmeta{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding-bottom:10px;border-bottom:1px solid #ececec}.fxmeta.one{display:block;padding:10px 0;border-bottom:1px solid #ececec}
+.fxk{color:var(--accent);font-weight:700;font-size:11px;letter-spacing:.6px}.fxv{font-weight:700;font-size:12px;margin-top:4px;color:#333;letter-spacing:.3px}.fxv.inline{display:inline;margin-left:8px;letter-spacing:.3px}
+.fxhead{text-align:center;font-size:20px;font-weight:700;color:#444;line-height:1.55;padding:24px 16px 10px}.fxhead p{margin:0 0 12px}.fxhead a{color:inherit}
+.fxsect{height:40px;background:var(--lav);color:var(--accent);font-size:11px;letter-spacing:1.2px;font-weight:700;display:flex;align-items:center;justify-content:space-between;padding:0 14px;margin-top:26px}
+.fxinfo{width:24px;height:24px;border:2px solid var(--accent);border-radius:50%;background:none;color:var(--accent);font:700 14px Georgia,serif;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.fxratings{margin:14px 14px 0}
+.fxday{background:var(--navy);color:#fff;height:46px;display:flex;align-items:center;padding-left:12px;font-size:16px}
+.fxhero{position:relative;aspect-ratio:3/1;container-type:inline-size;overflow:hidden}
+.fxart{position:absolute;inset:0;width:100%;height:100%;display:block}
+.fxbar{position:absolute;right:.3%;height:24.6%;border:1.5px solid #3a3a3a;display:flex;align-items:center}
+.fxbaricon{position:absolute;left:-.4cqw;top:50%;transform:translateY(-50%);width:9.5cqw;height:9.5cqw;display:flex}.fxbaricon svg{width:100%;height:100%}
+.fxbartext{flex:1;text-align:center;font-weight:700;font-size:4.4cqw;padding-left:9cqw;white-space:nowrap}
+.fxrow{display:flex;height:44px;border-bottom:1px solid #fff}
+.fxelev,.fxrate{flex:1;display:flex;align-items:center;padding-left:12px;font-size:14px}.fxrate{font-weight:700}
+.fxelev{border-left:1px solid #f0f0f0}
+.fxlist{margin:14px 14px 0;padding-left:26px;line-height:1.7}
+.fxnone{color:var(--accent);font-weight:700;font-size:17px;padding:18px 14px 0}
+.fxproblem{margin:16px 14px 0;border:1px solid #dcdcdc}
+.fxphead{background:var(--navy);color:#fff;min-height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:16px}.fxpday{font-size:13px;opacity:.8}
+.fxpbody{padding:14px 14px 18px}
+.fxpgrid{display:grid;grid-template-columns:1.25fr 1fr;gap:28px}
+.fxplbl{font-size:11px;font-weight:700;letter-spacing:.6px;color:#222;padding-bottom:6px;border-bottom:1px solid #dcdcdc;margin-bottom:10px}
+.fxrose{width:100%;max-width:300px;display:block;margin:0 auto}
+.fxscale{width:180px;display:block}
+.fxtext{padding:16px 14px 0;line-height:1.75;color:#444}.fxtext p{margin:0 0 10px}.fxtext a{color:#3d4cc0}
+.fxpbody .fxtext{padding:14px 0 0}
+.fximg{max-width:calc(100% - 28px);margin:12px 14px 0;border-radius:4px;display:block}
+.fxconf{padding:16px 14px 0;font-weight:700}
+.fxdisc{margin-top:26px;width:100%;height:50px;background:#000;color:#fff;border:0;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font:700 15px inherit;cursor:pointer}.fxdisc span{font-size:24px;font-weight:400}
+@media (max-width:640px){.fxpgrid{grid-template-columns:1fr}.fxmeta{grid-template-columns:1fr}.fx{padding:20px 12px 40px}.fxratings,.fxproblem{margin-left:0;margin-right:0}}
 @media print{.pbar,.nav{display:none}.preview{overflow:visible}}
 
 /* dialogs */
@@ -211,3 +226,8 @@ kbd{background:#f2f2f2;border:1px solid #ddd;border-radius:3px;padding:0 5px;fon
 .btn.small{height:26px;padding:0 10px;font-size:12.5px}
 .translatebtn{margin-left:auto;order:2}
 .btn:disabled{cursor:not-allowed;opacity:.55}
+/* danger dropdown: icons never shrink; menu can be wider than the card column (as in AVID) */
+.dsel svg,.menu svg{flex:none}
+.dsel span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dmenu{white-space:nowrap;z-index:50;right:auto!important;width:auto!important}
+.dmenu .mi{gap:12px;min-height:40px}

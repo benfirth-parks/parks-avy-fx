@@ -142,11 +142,25 @@ function CardSection({ section, card, idx, setCard, forecast }) {
 }
 
 function DangerSelect({ value, onChange }) {
-  const [open, setOpen] = useState(false);
+  // The menu is positioned against the window so the scrolling card doesn't clip it (as in AVID).
+  const [pos, setPos] = useState(null);
+  const btn = React.useRef(null);
+  const open = () => {
+    const r = btn.current.getBoundingClientRect();
+    const h = Math.min(DANGER_LEVELS.length * 40 + 10, innerHeight - 16);
+    const top = r.bottom + 4 + h > innerHeight ? Math.max(8, r.top - 4 - h) : r.bottom + 4;
+    setPos({ left: Math.min(r.left, innerWidth - 250), top, width: Math.max(r.width, 230), maxHeight: h });
+  };
+  React.useEffect(() => {
+    if (!pos) return;
+    const close = () => setPos(null);
+    addEventListener("scroll", close, true); addEventListener("resize", close);
+    return () => { removeEventListener("scroll", close, true); removeEventListener("resize", close); };
+  }, [pos]);
   return (
     <div className="r" style={{ position: "relative" }}>
-      <button type="button" className="dsel" onClick={() => setOpen(!open)} onBlur={() => setTimeout(() => setOpen(false), 150)}><DangerIcon level={value} /><span>{value}</span></button>
-      {open && <div className="menu" style={{ left: 0, right: 0, top: 44 }}>{DANGER_LEVELS.map((l) => <div key={l} className={"mi row" + (l === value ? " cur" : "")} onMouseDown={() => { onChange(l); setOpen(false); }}><DangerIcon level={l} size={20} />{l}</div>)}</div>}
+      <button ref={btn} type="button" className="dsel" onClick={() => (pos ? setPos(null) : open())} onBlur={() => setTimeout(() => setPos(null), 150)}><DangerIcon level={value} /><span>{value}</span></button>
+      {pos && <div className="menu dmenu" style={{ position: "fixed", left: pos.left, top: pos.top, minWidth: pos.width, maxHeight: pos.maxHeight, overflowY: "auto" }}>{DANGER_LEVELS.map((l) => <div key={l} className={"mi row" + (l === value ? " cur" : "")} onMouseDown={() => { onChange(l); setPos(null); }}><DangerIcon level={l} size={26} />{l}</div>)}</div>}
     </div>
   );
 }
