@@ -38,7 +38,7 @@ npm run build      # writes dist/
 | `src/OtherPages.jsx` | Weak Layers, Documentation, Archive |
 
 ## First run after deploying
-1. Open the site: with no accounts yet it asks for the **first admin account**. Create it straight away (until then anyone who opens the site could claim it).
+1. Open the site: with no accounts yet it asks for the **first admin account**, which needs the setup code in the Netlify environment variable `ADMIN_SETUP_CODE`. Without that variable, setup is closed. The same code works later under **Admin recovery** on the sign-in screen (create an admin or reset a lost admin password); delete or change the variable to disable it.
 2. Initials menu → **Users**: add the team with temporary passwords; they change them under **Account**.
 3. Initials menu → **Forecast polygons**: import the real BYK polygons (GeoJSON, WGS84, a name per polygon). Names matching the built-in polygons keep their ids.
 
@@ -48,6 +48,7 @@ npm run build      # writes dist/
 | `MYMEMORY_EMAIL` | Raises the free translation quota from ~5,000 to ~50,000 words/day |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` | Turn on **Send SMS** (`TWILIO_FROM` = sending number, or a messaging service id `MG…`) |
 | `SMS_RECIPIENTS` | Comma-separated numbers, `:fr` suffix for French, e.g. `+14035550101,+14035550102:fr` |
+| `ADMIN_SETUP_CODE` | Secret code for first-admin setup and admin recovery (closed when unset) |
 | `AUTH_SECRET` | Session signing secret (otherwise generated and stored in Blobs). Changing it signs everyone out |
 
 ## Still manual

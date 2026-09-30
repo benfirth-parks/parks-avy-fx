@@ -1,7 +1,9 @@
 // Accounts and sessions.
 // GET  → { user, needsSetup, team, users? }   (users only for admins)
 // POST { action, ... } with action one of:
-//   setup            { name, username, password }  first admin, only while no accounts exist
+//   setup            { code, name, username, password }  first admin; needs ADMIN_SETUP_CODE.
+//                    Once accounts exist, the same code recovers admin access: it creates
+//                    or resets that username as an admin (e.g. if a password is lost).
 //   login            { username, password }
 //   logout
 //   change-password  { current, password }
@@ -9,9 +11,17 @@
 //   reset-password   { username, password }                admin
 //   set-admin        { username, admin }                   admin
 //   remove-user      { username }                          admin
+import { timingSafeEqual } from "node:crypto";
 import { openStore, loadUsers, saveUsers, currentUser, hashPassword, checkPassword, validPassword, validUsername, normUsername, sessionCookie, clearCookie, json, unauthorized } from "../lib/auth.mjs";
 
 const LOCK_AFTER = 10, LOCK_MS = 15 * 60 * 1000;
+// Secret set in the Netlify environment (never in the repo). Without it, setup is closed.
+const setupCode = () => (process.env.ADMIN_SETUP_CODE || "").trim();
+const codeOk = (given) => {
+  const want = setupCode(), got = String(given || "").trim();
+  if (!want || got.length !== want.length) return false;
+  return timingSafeEqual(Buffer.from(got), Buffer.from(want));
+};
 
 export default async (req) => {
   try {
@@ -31,7 +41,7 @@ export async function handle(req, store) {
   const needsSetup = Object.keys(users).length === 0;
 
   if (req.method === "GET") {
-    return json({ user: me, needsSetup, team: me ? team(users) : [], ...(me?.admin ? { users: listing(users) } : {}) });
+    return json({ user: me, needsSetup, setupAvailable: !!setupCode(), team: me ? team(users) : [], ...(me?.admin ? { users: listing(users) } : {}) });
   }
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
   let body;
@@ -39,12 +49,23 @@ export async function handle(req, store) {
   const action = body?.action;
 
   if (action === "setup") {
-    if (!needsSetup) return json({ error: "Accounts already exist. Sign in instead." }, 409);
+    if (!setupCode()) return json({ error: "Admin setup is closed. Set ADMIN_SETUP_CODE in the Netlify environment to open it." }, 403);
+    // Shares the login lockout so the code can't be guessed.
+    const failKey = "auth/fails/__setup";
+    const fails = (await store.get(failKey, { type: "json" })) || { n: 0, until: 0 };
+    if (fails.until > Date.now()) return json({ error: "Too many attempts. Try again in 15 minutes." }, 429);
+    if (!codeOk(body.code)) {
+      const n = fails.n + 1;
+      await store.setJSON(failKey, n >= LOCK_AFTER ? { n: 0, until: Date.now() + LOCK_MS } : { n, until: 0 });
+      return json({ error: "Wrong setup code." }, 401);
+    }
+    if (fails.n) await store.delete(failKey);
     const username = normUsername(body.username), name = cleanName(body.name);
     if (!name) return json({ error: "Enter your name." }, 400);
     if (!validUsername(username)) return json({ error: "Username: 2–40 letters, numbers, dots, dashes or underscores." }, 400);
     if (!validPassword(body.password)) return json({ error: "Password must be at least 8 characters." }, 400);
-    users[username] = { name, admin: true, v: 0, created: new Date().toISOString(), ...hashPassword(body.password) };
+    const prev = users[username];
+    users[username] = { ...(prev || { created: new Date().toISOString() }), name, admin: true, v: (prev?.v || 0) + (prev ? 1 : 0), ...hashPassword(body.password) };
     await saveUsers(store, users);
     return json({ user: { username, name, admin: true } }, 200, { "set-cookie": await sessionCookie(store, username, users[username]) });
   }

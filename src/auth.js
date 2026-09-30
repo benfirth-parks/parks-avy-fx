@@ -9,7 +9,7 @@ import { setUser, setTeam, startSync, clearLocalData } from "./store.js";
 const API = "/.netlify/functions/auth";
 const CACHE = "parks-avy-fx:session";
 
-let s = { phase: "checking", user: null, needsSetup: false, team: [], users: [], offline: false, error: "" };
+let s = { phase: "checking", user: null, needsSetup: false, setupAvailable: false, team: [], users: [], offline: false, error: "" };
 const listeners = new Set();
 const set = (patch) => { s = { ...s, ...patch }; listeners.forEach((l) => l()); };
 export const useAuth = () => useSyncExternalStore((cb) => { listeners.add(cb); return () => listeners.delete(cb); }, () => s);
@@ -40,7 +40,7 @@ export async function boot() {
     const d = await call("GET");
     if (!d || !("needsSetup" in d)) return goLocal();
     if (d.user) signedIn(d.user, { needsSetup: false, team: d.team || [], users: d.users || [], offline: false });
-    else { cache(null); set({ phase: "signedOut", needsSetup: d.needsSetup, user: null }); }
+    else { cache(null); set({ phase: "signedOut", needsSetup: d.needsSetup, setupAvailable: !!d.setupAvailable, user: null }); }
   } catch (e) {
     if (e.noApi || e.status === 404) return goLocal();
     // Server unreachable: carry on with the last session on this device (changes are kept locally).
@@ -65,8 +65,8 @@ export async function login(username, password) {
   await boot(); // pick up team / admin listing with the new cookie
   return d;
 }
-export async function setupFirstAdmin(name, username, password) {
-  await call("POST", { action: "setup", name, username, password });
+export async function setupFirstAdmin(code, name, username, password) {
+  await call("POST", { action: "setup", code, name, username, password });
   await boot();
 }
 export async function logout() {
