@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { go } from "./App.jsx";
-import { updateForecast, SECTIONS, progress, cardTitles } from "./store.js";
+import { updateForecast, SECTIONS, progress, cardTitles, relTime } from "./store.js";
 import { Bilingual, RichText, AddLanguage } from "./RichText.jsx";
 import { DangerIcon, DANGER_LEVELS, Rose, Likelihood, Icons, Hint } from "./icons.jsx";
 import { ProblemModal, problemSelection, problemBox } from "./ProblemModal.jsx";
-import { ask } from "./dialog.jsx";
+import { ask, notify } from "./dialog.jsx";
+import { CONFIDENCE_STATEMENTS, DANGER_SCALE } from "./content.js";
 
 export function Editor({ forecast: f, section }) {
   const set = (fn) => updateForecast(f.id, fn);
@@ -48,7 +49,7 @@ export function Editor({ forecast: f, section }) {
           <div className="wide">
             <div className="row between" style={{ alignItems: "flex-start" }}>
               <div className="ptitle">{f.name || "Untitled"}</div>
-              <div style={{ textAlign: "right" }}><div className="vc">Last Modified</div><div style={{ fontSize: 20 }}>{f.modified}</div></div>
+              <div style={{ textAlign: "right" }}><div className="vc">Last Modified</div><div style={{ fontSize: 20 }}>{relTime(f.modified)}</div></div>
             </div>
             {section === "media" && <Media f={f} set={set} />}
             {section === "communications" && <Communications f={f} set={set} />}
@@ -59,7 +60,7 @@ export function Editor({ forecast: f, section }) {
             <div className="editorhead">
               <div><div className="vc">Visible Cards:</div><div>{[1, 2, 3, 4].map((n) => <button key={n} className={"vcb" + (f.visibleCards[n - 1] ? "" : " off")} onClick={() => set((x) => { x.visibleCards[n - 1] = !x.visibleCards[n - 1]; return x; })}>{n}</button>)}</div></div>
               <div className="ptitle center">{f.name || "Untitled"}</div>
-              <div style={{ marginLeft: "auto", textAlign: "right" }}><div className="vc">Last Modified</div><div style={{ fontSize: 20 }}>{f.modified}</div></div>
+              <div style={{ marginLeft: "auto", textAlign: "right" }}><div className="vc">Last Modified</div><div style={{ fontSize: 20 }}>{relTime(f.modified)}</div></div>
             </div>
             <div className="cards">
               {f.cards.map((card, i) => f.visibleCards[i] && (
@@ -111,7 +112,7 @@ function CardSection({ section, card, idx, setCard, forecast }) {
       <>
         <div className="dtable">
           {rows.map(([k, t]) => <div key={k} className="dr"><div className="e">{t}</div><DangerSelect value={card.danger[k]} onChange={(v) => setCard((c) => { c.danger[k] = v; return c; })} /></div>)}
-          <div className="dhint"><Hint /></div>
+          <div className="dhint"><button type="button" className="hint" style={{ border: "1px solid #999", background: "none", cursor: "pointer" }} title="Danger scale" onClick={() => notify(DANGER_SCALE, "North American Public Avalanche Danger Scale")}>?</button></div>
         </div>
         {card.problems.map((pr) => (
           <div key={pr.id} style={{ marginTop: 22 }}>
@@ -123,11 +124,17 @@ function CardSection({ section, card, idx, setCard, forecast }) {
     );
   }
   if (section === "confidence") {
+    const q = card.confidenceFilter || "";
+    const list = CONFIDENCE_STATEMENTS.filter((t) => !q || t.toLowerCase().includes(q.toLowerCase()));
+    const chosen = card.confidenceStatements || [];
     return (
       <>
         <select className="sel" value={card.confidence} onChange={(e) => setCard((c) => { c.confidence = e.target.value; return c; })}>{["No Rating", "Low", "Moderate", "High"].map((o) => <option key={o}>{o}</option>)}</select>
         <div className="divider" style={{ marginTop: 30 }}><span>Filter</span></div>
-        <input className="inp" style={{ marginTop: 16 }} placeholder="Tag Search using keywords or tags" value={card.confidenceFilter} onChange={(e) => setCard((c) => { c.confidenceFilter = e.target.value; return c; })} />
+        <input className="inp" style={{ marginTop: 16 }} placeholder="Tag Search using keywords or tags" value={q} onChange={(e) => setCard((c) => { c.confidenceFilter = e.target.value; return c; })} />
+        <div className="ttalist" style={{ maxHeight: "none" }}>
+          {list.map((t) => <button key={t} type="button" className={"ttaitem" + (chosen.includes(t) ? " on" : "")} onClick={() => setCard((c) => { const cur = c.confidenceStatements || []; c.confidenceStatements = cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]; return c; })}>{t}</button>)}
+        </div>
       </>
     );
   }
@@ -157,9 +164,7 @@ const MEDIA_RIGHT = [["headline", "Headline"], ["tta", "Terrain and Travel Advic
 function Media({ f, set }) {
   const [open, setOpen] = useState({ avalanche: true, snowpack: true, weather: true });
   const addImage = (k, file) => {
-    const r = new FileReader();
-    r.onload = () => set((x) => { x.media[k] = [...(x.media[k] || []), { name: file.name, data: r.result }]; return x; });
-    r.readAsDataURL(file);
+    resizeImage(file, 1600).then((data) => set((x) => { x.media[k] = [...(x.media[k] || []), { name: file.name, data }]; return x; }));
   };
   const Block = ([k, t]) => (
     <Acc key={k} title={t} open={!!open[k]} onToggle={() => setOpen({ ...open, [k]: !open[k] })}>
@@ -213,4 +218,22 @@ function Review({ f, set }) {
       </div>
     </div>
   );
+}
+
+// Downscale uploads so the shared document stays small (max edge px, JPEG).
+function resizeImage(file, max) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = () => { const r = new FileReader(); r.onload = () => resolve(r.result); r.readAsDataURL(file); };
+    img.src = url;
+  });
 }

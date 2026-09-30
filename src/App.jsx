@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { useStore, getState } from "./store.js";
+import { useStore, getUser, setUser, initials, FORECASTERS } from "./store.js";
+import { useSyncStatus, syncInfo } from "./sync.js";
+import { ask } from "./dialog.jsx";
+import { relTime } from "./store.js";
 import { ForecastsPage } from "./ForecastsPage.jsx";
 import { Editor } from "./Editor.jsx";
 import { Preview } from "./Preview.jsx";
@@ -26,10 +29,36 @@ export function useRoute() {
 
 export function Nav({ active, hideAvatar }) {
   const links = [["Weak Layers", "/weak-layers"], ["Avalanche Forecasts", "/forecasts"], ["Documentation", "/documentation"], ["Archive", "/archive"]];
+  const status = useSyncStatus();
+  const [open, setOpen] = useState(false);
+  useStore(); // re-render on identity change
+  const user = getUser();
+  const info = syncInfo();
+  const label = { local: "Local only", saving: "Saving…", saved: "Saved", offline: "Offline · saved locally", conflict: "Sync conflict" }[status];
+  const title = status === "saved" && info.lastSyncedAt ? `Shared document v${info.version} · last change ${relTime(info.lastSyncedAt)}${info.lastBy ? " by " + info.lastBy : ""}` : label;
+  const pick = async (name) => {
+    if (name === "__other") {
+      const n = await ask({ title: "Sign in as", message: "Your name as it should appear on forecasts", input: "", okLabel: "Continue" });
+      if (n && n.trim()) setUser(n.trim());
+    } else setUser(name);
+    setOpen(false);
+  };
   return (
     <div className="nav">
       {links.map(([t, p]) => <a key={t} href={"#" + p} onClick={(e) => { e.preventDefault(); go(p); }} className={"navlink" + (active === t ? " on" : "")}>{t}</a>)}
-      {!hideAvatar && <div className="avatar" title="Ben Firth">BE</div>}
+      {!hideAvatar && (
+        <div className="navright">
+          <span className={"syncdot " + status} title={title}>{label}</span>
+          <button className="avatar" title={user} onClick={() => setOpen(!open)} onBlur={() => setTimeout(() => setOpen(false), 150)}>{initials(user)}</button>
+          {open && (
+            <div className="menu usermenu">
+              <div className="mi muted" style={{ cursor: "default" }}>Signed in as <b style={{ color: "#1f1f1f" }}>{user}</b></div>
+              {[...new Set([...FORECASTERS, user])].map((n) => <div key={n} className={"mi" + (n === user ? " cur" : "")} onMouseDown={() => pick(n)}>{n}</div>)}
+              <div className="mi" onMouseDown={() => pick("__other")}>Someone else…</div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

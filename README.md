@@ -2,7 +2,7 @@
 
 Avalanche forecast workbench for Banff / Yoho / Kootenay Visitor Safety — a like-for-like replacement for AVID.
 
-**Stack:** React 18, esbuild, MapLibre GL (OpenTopoMap raster tiles, no API key), plain CSS styled to match AVID's Ant Design look. No backend yet: state lives in `localStorage` behind `src/store.js`, which is the one file to swap for Supabase.
+**Stack:** React 18, esbuild, MapLibre GL (OpenTopoMap raster tiles, no API key), plain CSS styled to match AVID's Ant Design look. Shared team storage is a single Netlify Function (`netlify/functions/state.mjs`) backed by Netlify Blobs — no external account or keys. The client (`src/sync.js`) saves a moment after each change, polls every 15 s, merges newest-edit-wins per forecast, and keeps a `localStorage` copy for offline use.
 
 ## Run locally
 ```
@@ -12,14 +12,17 @@ npm run build      # writes dist/
 ```
 
 ## Deploy
-`netlify.toml` is set up for a Netlify site building from this repo (`npm run build`, publish `dist`). Connect the repo to the `parks-avy-fx` site in the PCVS team, or deploy `dist/` by hand.
+`netlify.toml` builds with `npm run build`, publishes `dist/`, and serves the function at `/api/state`. Link this repo to the `parks-avy-fx` site in the PCVS Netlify team; every push to `main` then deploys. Netlify Blobs needs no setup.
 
 ## Where things are
 | File | What |
 |---|---|
-| `src/store.js` | Data model, seed forecast, localStorage persistence, publish / clone / progress logic |
+| `src/store.js` | Data model, seed forecast, mutations, merge rules, publish / clone / expiry / progress logic |
+| `src/sync.js` | Shared-document sync with the Netlify function (versioned PUT, conflict merge, polling) |
+| `netlify/functions/state.mjs` | GET/PUT of the shared document in Netlify Blobs, with version history |
+| `src/content.js` | Standard statement libraries (confidence, danger scale) and French UI strings |
 | `src/polygons.js` | **Placeholder** forecast polygons (hand-drafted). Replace with the real BYK GeoJSON |
-| `src/MapView.jsx` | MapLibre map: polygon fills by forecast colour, click-to-toggle in setup mode |
+| `src/MapView.jsx` | MapLibre map: polygon fills by forecast colour, click-to-toggle and lasso select in setup mode |
 | `src/ForecastsPage.jsx` | Draft / Completed / Live list, detail drawer, Edit Forecast Setup |
 | `src/Editor.jsx` | Content editor: sidebar sections, four cards, danger ratings, confidence, media, communications, review |
 | `src/ProblemModal.jsx` | New / edit avalanche problem, rose, likelihood chart, terrain & travel advice |
@@ -28,7 +31,7 @@ npm run build      # writes dist/
 | `src/OtherPages.jsx` | Weak Layers, Documentation, Archive |
 
 ## Not yet wired
-- Persistence to a shared database (Supabase) and per-forecaster login
+- Per-person login (site relies on Netlify team access; the avatar menu records who is editing)
 - Machine translation (the Translate button is a stub)
-- Lasso polygon selection (single-click toggling works)
 - SMS / feed publishing endpoints
+- Real BYK forecast polygons (see `src/polygons.js`)

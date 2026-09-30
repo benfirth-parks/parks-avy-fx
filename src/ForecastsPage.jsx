@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { MapView } from "./MapView.jsx";
 import { go } from "./App.jsx";
-import { useStore, addForecast, blankForecast, updateForecast, deleteForecast, deleteDraftsStartNewDay, cloneToDraft, publishForecast, progress, colourOf, unassignedCount, COLOURS, FORECASTERS, TIMEZONES } from "./store.js";
+import { useStore, addForecast, blankForecast, updateForecast, deleteForecast, deleteDraftsStartNewDay, cloneToDraft, publishForecast, progress, colourOf, unassignedCount, fmtStamp, getUser, COLOURS, FORECASTERS, TIMEZONES } from "./store.js";
 import { Icons, Hint } from "./icons.jsx";
 import { ask, notify } from "./dialog.jsx";
 import { POLYGON_IDS } from "./polygons.js";
@@ -18,12 +18,12 @@ export function ForecastsPage({ route }) {
 
   useEffect(() => {
     if (id === "new") {
-      const nid = addForecast(blankForecast({ name: "", forecaster: "Ben Firth", colour: COLOURS[1].name }));
+      const nid = addForecast(blankForecast({ name: "", forecaster: getUser(), colour: COLOURS[1].name }));
       go(`/forecasts/${nid}/setup`);
     }
   }, [id]);
 
-  const banner = selected && (sub === "setup" || sub === undefined) && (id ? { ...colourOf(selected), name: selected.name || "Untitled", expiry: selected.expiry, issued: selected.issued, modified: selected.modified } : null);
+  const banner = selected && (sub === "setup" || sub === undefined) && (id ? { ...colourOf(selected), name: selected.name || "Untitled", expiry: selected.expiry, issued: selected.issued, modified: fmtStamp(selected.modified) } : null);
   const mapForecasts = editing ? state.forecasts.filter((f) => f.status === filter || f.id === selected.id) : list;
 
   return (
@@ -33,6 +33,7 @@ export function ForecastsPage({ route }) {
         selectedId={selected?.id}
         editingId={editing ? selected.id : null}
         onTogglePolygon={(pid) => updateForecast(selected.id, (f) => { f.polygons = f.polygons.includes(pid) ? f.polygons.filter((p) => p !== pid) : [...f.polygons, pid]; return f; })}
+        onLasso={(ids, remove) => updateForecast(selected.id, (f) => { f.polygons = remove ? f.polygons.filter((p) => !ids.includes(p)) : [...new Set([...f.polygons, ...ids])]; return f; })}
         banner={banner}
         unassigned={unassignedCount(mapForecasts, editing ? selected.status : filter)}
       />
@@ -73,7 +74,7 @@ function ForecastRow({ f }) {
 }
 
 function Scrim({ onClose }) {
-  return <div className="scrim" onClick={onClose} />;
+  return <div className="scrim panelscrim" onClick={onClose} />;
 }
 
 function DetailDrawer({ f }) {
@@ -85,7 +86,7 @@ function DetailDrawer({ f }) {
       <Scrim onClose={close} />
       <div className="drawer">
         <div className="dtitle">{f.name || "Untitled"}</div>
-        <div className="row between" style={{ marginTop: 10 }}><span>{f.forecaster}</span><span><b>Last modified:</b> {f.modified}</span></div>
+        <div className="row between" style={{ marginTop: 10 }}><span>{f.forecaster}</span><span><b>Last modified:</b> {fmtStamp(f.modified)}</span></div>
         <div className="divider"><span>Details</span></div>
         <div className="grid2" style={{ marginTop: 20, rowGap: 22 }}>
           <Field k="Issued Date/Time" v={<>{f.issued},<br />{f.issuedTime}</>} />
@@ -99,7 +100,7 @@ function DetailDrawer({ f }) {
         <div className="row" style={{ gap: 10, marginTop: 8 }}><div className="prog" style={{ width: 160 }}><b style={{ width: p + "%" }} /></div><span>{p}%</span></div>
         <button className="polybar" style={{ background: tint(colourOf(f).hex) }} onClick={() => go(`/forecasts/${f.id}/setup`)}><span>{f.polygons.length} Polygons</span><span className="chev">›</span></button>
         {live && <div className="notebar">{f.reviewNote || "Review Note"}</div>}
-        {live ? (
+        {f.status !== "draft" ? (
           <div className="row" style={{ gap: 16, marginTop: 18 }}>
             <button className="btn" onClick={() => go(`/forecasts/${cloneToDraft(f.id)}`)}>Clone to Draft</button>
             <button className="btn" onClick={() => go(`/forecasts/${f.id}/preview`)}>Preview</button>
@@ -146,7 +147,7 @@ function SetupDrawer({ f }) {
         <label className="lbl req" style={{ marginTop: 22 }}>Forecast Name</label>
         <input className="inp" value={f.name} placeholder="e.g. May 1" onChange={(e) => set({ name: e.target.value })} autoFocus />
         <div className="grid2" style={{ marginTop: 22 }}>
-          <div><label className="lbl req">Forecaster</label><select className="sel" value={f.forecaster} onChange={(e) => set({ forecaster: e.target.value })}>{FORECASTERS.map((n) => <option key={n}>{n}</option>)}</select></div>
+          <div><label className="lbl req">Forecaster</label><select className="sel" value={f.forecaster} onChange={(e) => set({ forecaster: e.target.value })}>{[...new Set([...FORECASTERS, getUser(), f.forecaster])].map((n) => <option key={n}>{n}</option>)}</select></div>
           <div style={{ position: "relative" }}>
             <label className="lbl">Colour</label>
             <button className="btn" style={{ width: "100%", background: c.hex, borderColor: c.hex, color: c.text }} onClick={() => setPick(!pick)}>{c.name}</button>
