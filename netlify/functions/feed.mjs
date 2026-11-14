@@ -1,5 +1,9 @@
 // Public feed of Live avalanche forecasts, read from the shared team document.
 // GET /.netlify/functions/feed?format=json|rss|sms&lang=en|fr
+//   &from=YYYY-MM-DD&to=YYYY-MM-DD (json only) → past bulletins instead: every
+//     published forecast (Live or Completed) in effect on any day in that range,
+//     newest first, each with its "status". At most 31 days. Used by the Winter
+//     Meeting's Live Check to compare yesterday's bulletin with what was observed.
 //   json (default) → structured forecasts for other sites / apps
 //   rss            → one item per live forecast
 //   sms            → plain-text SMS message(s), ready to hand to a texting service
@@ -15,7 +19,10 @@ export default async (req) => {
     const lang = url.searchParams.get("lang") === "fr" ? "fr" : "en";
     const store = getStore({ name: "parks-avy-fx", consistency: "strong" });
     const doc = await store.get("state", { type: "json" });
-    const out = render(doc?.state, { format, lang, origin: url.origin, now: new Date() });
+    const from = url.searchParams.get("from"), to = url.searchParams.get("to");
+    const out = from || to
+      ? renderArchive(doc?.state, { from, to: to || from, format, lang, origin: url.origin, now: new Date() })
+      : render(doc?.state, { format, lang, origin: url.origin, now: new Date() });
     return new Response(out.body, { status: out.status || 200, headers: { "content-type": out.type, "cache-control": "public, max-age=60", "access-control-allow-origin": "*" } });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e && e.message ? e.message : e) }), { status: 500, headers: { "content-type": "application/json" } });
@@ -33,6 +40,20 @@ export function render(state, { format = "json", lang = "en", origin = "", now =
   return { type: "application/json; charset=utf-8", body: JSON.stringify({ generated: now.toISOString(), lang, forecasts }, null, 2) };
 }
 
+// Past bulletins in effect on any day from `from` to `to` (inclusive, local dates).
+export function renderArchive(state, { from, to, format = "json", lang = "en", origin = "", now = new Date() } = {}) {
+  const bad = (error) => ({ status: 400, type: "application/json", body: JSON.stringify({ error }) });
+  const isDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d || "");
+  if (format !== "json") return bad("from/to work with format=json only");
+  if (!isDate(from) || !isDate(to)) return bad("from and to must be YYYY-MM-DD");
+  if (to < from) return bad("to is before from");
+  if ((Date.parse(to) - Date.parse(from)) / 864e5 > 31) return bad("at most 31 days at a time");
+  const fc = state?.geo?.fc?.features?.length ? state.geo.fc : PLACEHOLDER;
+  const names = Object.fromEntries(fc.features.map((f) => [f.id, f.properties.name]));
+  const forecasts = inEffect(state, from, to).map((f) => ({ status: f.status, ...shape(f, lang, origin, names) }));
+  return { type: "application/json; charset=utf-8", body: JSON.stringify({ generated: now.toISOString(), lang, from, to, forecasts }, null, 2) };
+}
+
 // ---------- selection ----------
 const TZ = { "Mountain Time (Canada)": "America/Edmonton", "Pacific Time (Canada)": "America/Vancouver" };
 const zoneOf = (f) => TZ[f.timezone] || TZ["Mountain Time (Canada)"];
@@ -41,6 +62,19 @@ function liveForecasts(state, now) {
   return (state?.forecasts || [])
     .filter((f) => f.status === "live" && zonedToUtc(f.expiry, f.expiryTime || "17:00", zoneOf(f)) > now)
     .sort((a, b) => (b.publishedAt || b.modified || "").localeCompare(a.publishedAt || a.modified || ""));
+}
+
+// Published forecasts (Live or Completed) whose issued–expiry window touches the range.
+function inEffect(state, from, to) {
+  return (state?.forecasts || [])
+    .filter((f) => (f.status === "live" || f.status === "completed") && f.issued && f.expiry)
+    .filter((f) => {
+      const zone = zoneOf(f);
+      const start = zonedToUtc(f.issued, f.issuedTime || "17:00", zone);
+      const end = zonedToUtc(f.expiry, f.expiryTime || "17:00", zone);
+      return start <= zonedToUtc(to, "23:59", zone) && end >= zonedToUtc(from, "00:00", zone);
+    })
+    .sort((a, b) => (b.publishedAt || b.issued || "").localeCompare(a.publishedAt || a.issued || ""));
 }
 
 // Wall-clock date/time in an IANA zone → UTC Date (handles DST).
