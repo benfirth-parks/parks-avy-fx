@@ -24,7 +24,7 @@ npm run build      # writes dist/
 | `netlify/functions/auth.mjs` | Sign in / out, first-admin setup, change password, admin user management |
 | `netlify/functions/translate.mjs` | EN→FR machine translation via MyMemory (free, keyless; cached in Blobs) |
 | `netlify/functions/sms.mjs` | Texts a Live forecast's SMS message via Twilio — off until the env vars below are set |
-| `netlify/functions/feed.mjs` | Public read-only feed of unexpired Live forecasts: `/.netlify/functions/feed?format=json\|rss\|sms&lang=en\|fr` |
+| `netlify/functions/feed.mjs` | Public read-only feed of unexpired Live forecasts: `/.netlify/functions/feed?format=json\|rss\|sms&lang=en\|fr`. Add `&from=YYYY-MM-DD&to=YYYY-MM-DD` (JSON, up to 31 days) for past bulletins: every published forecast, Live or Completed, in effect in that range |
 | `src/content.js` | Standard statement libraries (confidence, danger scale) and French UI strings |
 | `src/polygons.js` | Placeholder polygons, the active set, and the GeoJSON importer (the real BYK polygons are imported in the app and stored in the shared document) |
 | `src/auth.js`, `src/Login.jsx`, `src/AdminPages.jsx` | Session state, sign-in / first-admin screen, Account, Users and Forecast polygons pages |
